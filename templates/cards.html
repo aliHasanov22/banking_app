@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between">
+    <h2>My Cards</h2>
+    <a href="{{ url_for('order_card') }}" class="btn btn-primary">Order New Card</a>
+</div>
+
+<div class="row mt-4">
+    {% for c in cards %}
+    <div class="col-md-6 mb-4">
+        <div class="card h-100 shadow {{ 'card-visa' if c['card_type'] == 'VISA' else 'card-master' }}">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <h5>{{ c['card_name'] }}</h5>
+                    <span>{{ c['currency'] }}</span>
+                </div>
+                <h3 class="my-3">{{ c['card_number'] }}</h3>
+                <div class="d-flex justify-content-between">
+                    <span>Exp: {{ c['expiry'] }}</span>
+                    <span>Status: <strong>{{ c['status'] }}</strong></span>
+                </div>
+                <hr style="border-color: rgba(255,255,255,0.3);">
+                <div class="d-grid">
+                    <a href="{{ url_for('card_settings', card_num=c['card_number']) }}" class="btn btn-light text-dark">
+                        <i class="fas fa-cog"></i> Manage Settings
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
