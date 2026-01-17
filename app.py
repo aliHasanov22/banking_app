@@ -293,7 +293,7 @@ def get_chat():
     return jsonify([dict(m) for m in msgs])
 
 # --- FINANCIAL ROUTES (Transfer, Topup, Cards) ---
-
+#tansfer 1.1v
 @app.route('/transfer', methods=['GET', 'POST'])
 def transfer():
     if 'user_id' not in session: return redirect(url_for('login'))
@@ -311,49 +311,84 @@ def transfer():
             sender_card = conn.execute("SELECT * FROM cards WHERE card_number=?", (sender_card_num,)).fetchone()
             rcv = conn.execute("SELECT account_id, status, currency FROM cards WHERE card_number=?", (receiver_card_num,)).fetchone()
             
+            # --- NEW FEE LOGIC ---
+            total_fee = 0.0
+            fee_note = ""
+            if amount > 5000:
+                calculated_fee = amount * 0.02
+                # Ensure minimum fee of 1.0 if over threshold
+                total_fee = max(calculated_fee, 1.0)
+                fee_note = f"Transfer Fee (2% on amount > 5000 {sender_card['currency']})"
+
+            total_deduction = amount + total_fee
+            # ---------------------
+
             # Validation
             if not sender_card or sender_card['card_pin'] != pin: flash("Invalid Card or PIN", "danger")
             elif not rcv: flash("Receiver not found", "danger")
             elif rcv['status'] != 'ACTIVE': flash("Receiver card inactive", "danger")
-            elif rcv['currency'] != sender_card['currency']: flash("Currency mismatch", "danger")
-            elif rcv['account_id'] == uid: flash("Cannot send to self", "warning")
-            elif amount > sender_card['expense_limit']: flash("Exceeds card expense limit", "danger")
+            elif rcv['currency'] != sender_card['currency']: flash("Currency mismatch. Cannot transfer between different currencies.", "danger")
+            elif rcv['account_id'] == uid: flash("Cannot send to self. Use Top Up instead.", "warning")
+            elif amount > sender_card['expense_limit']: flash(f"Exceeds card spending limit of {sender_card['expense_limit']}", "danger")
             else:
+                # Get current balance
                 bal_row = conn.execute("SELECT amount FROM balances WHERE account_id=? AND currency=?", (uid, sender_card['currency'])).fetchone()
                 bal = bal_row['amount'] if bal_row else 0.0
                 
-                if amount > bal:
-                    flash("Insufficient funds", "danger")
+                # Check balance against total amount INCLUDING fee
+                if total_deduction > bal:
+                    flash(f"Insufficient funds. You need {total_deduction:.2f} {sender_card['currency']} (includes fee).", "danger")
                 else:
-                    # Update Sender
-                    conn.execute("UPDATE balances SET amount=? WHERE account_id=? AND currency=?", (bal - amount, uid, sender_card['currency']))
+                    # 1. Deduct Total (Amount + Fee) from Sender
+                    conn.execute("UPDATE balances SET amount=? WHERE account_id=? AND currency=?", (bal - total_deduction, uid, sender_card['currency']))
                     
-                    # Update Receiver
+                    # 2. Add ONLY Amount to Receiver
                     rcv_bal_row = conn.execute("SELECT amount FROM balances WHERE account_id=? AND currency=?", (rcv['account_id'], sender_card['currency'])).fetchone()
                     if not rcv_bal_row:
                         conn.execute("INSERT INTO balances VALUES (?, ?, ?)", (rcv['account_id'], sender_card['currency'], amount))
                     else:
                         conn.execute("UPDATE balances SET amount=? WHERE account_id=? AND currency=?", (rcv_bal_row['amount'] + amount, rcv['account_id'], sender_card['currency']))
                     
-                    # Log Transactions
                     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    curr = sender_card['currency']
+                    
+                    # 3. Log Main Transaction
                     conn.execute("INSERT INTO transactions (account_id, timestamp, type, currency, amount, note) VALUES (?, ?, ?, ?, ?, ?)",
-                                 (uid, ts, "SENT", sender_card['currency'], -amount, f"To {receiver_card_num}"))
+                                 (uid, ts, "SENT", curr, -amount, f"To {receiver_card_num}"))
+                    
+                    # 4. Log Fee Transaction (if applicable)
+                    if total_fee > 0:
+                         conn.execute("INSERT INTO transactions (account_id, timestamp, type, currency, amount, note) VALUES (?, ?, ?, ?, ?, ?)",
+                                 (uid, ts, "FEE", curr, -total_fee, fee_note))
+
+                    # 5. Log Receiver Transaction
                     conn.execute("INSERT INTO transactions (account_id, timestamp, type, currency, amount, note) VALUES (?, ?, ?, ?, ?, ?)",
-                                 (rcv['account_id'], ts, "RECEIVED", sender_card['currency'], amount, f"From {sender_card_num}"))
+                                 (rcv['account_id'], ts, "RECEIVED", curr, amount, f"From {sender_card_num}"))
                     
                     conn.commit()
-                    conn.close() # Close before bonus to prevent lock
+                    conn.close() # Close before bonus process
                     
-                    process_bonus(uid, sender_card['currency'], amount)
-                    flash("Transfer Successful!", "success")
+                    # Process bonus on the transfer amount only (not fee)
+                    process_bonus(uid, curr, amount)
+                    flash(f"Successfully sent {amount} {curr}!", "success")
                     return redirect(url_for('history'))
 
-        active_cards = conn.execute("SELECT * FROM cards WHERE account_id=? AND status='ACTIVE'", (uid,)).fetchall()
-        return render_template('transfer.html', cards=active_cards)
+        # Need to fetch balances to show on the form
+        balances = conn.execute("SELECT * FROM balances WHERE account_id=?", (uid,)).fetchall()
+        bal_dict = {row['currency']: row['amount'] for row in balances}
+        db_cards = conn.execute("SELECT * FROM cards WHERE account_id=? AND status='ACTIVE'", (uid,)).fetchall()
+        
+        # Combine card data with balance data for the frontend select box
+        active_cards_with_bal = []
+        for c in db_cards:
+             c_dict = dict(c)
+             c_dict['balance'] = bal_dict.get(c['currency'], 0.00)
+             active_cards_with_bal.append(c_dict)
+
+        return render_template('transfer.html', cards=active_cards_with_bal)
     except Exception as e:
         print(e)
-        flash("An error occurred.", "danger")
+        flash("An error occurred during transfer.", "danger")
         return redirect(url_for('transfer'))
     finally:
         try: conn.close()
@@ -566,5 +601,6 @@ def logout():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, port=5000)
+
 
 
