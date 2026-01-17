@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+<a href="{{ url_for('cards') }}" class="btn btn-secondary mb-3">&larr; Back to Cards</a>
+<h2>Card Settings</h2>
+<h4 class="text-muted">{{ card['card_number'] }} ({{ card['currency'] }})</h4>
+
+{% if card['status'] == 'PENDING' %}
+<div class="alert alert-warning">This card is PENDING approval. You cannot modify it yet.</div>
+{% else %}
+
+<div class="row mt-4">
+    <div class="col-md-6 mb-3">
+        <div class="card p-3">
+            <h5>Rename Card</h5>
+            <form method="POST">
+                <input type="hidden" name="action" value="rename">
+                <input type="text" name="new_name" class="form-control mb-2" value="{{ card['card_name'] }}" required>
+                <button class="btn btn-sm btn-primary">Update Name</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-3">
+        <div class="card p-3">
+            <h5>Change PIN</h5>
+            <form method="POST">
+                <input type="hidden" name="action" value="change_pin">
+                <input type="text" name="new_pin" class="form-control mb-2" maxlength="4" placeholder="New 4-digit PIN" required>
+                <button class="btn btn-sm btn-warning">Update PIN</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-3">
+        <div class="card p-3">
+            <h5>Expense Limit (Current: {{ card['expense_limit'] }})</h5>
+            <form method="POST">
+                <input type="hidden" name="action" value="change_limit">
+                <input type="number" name="new_limit" class="form-control mb-2" step="100" required>
+                <button class="btn btn-sm btn-info text-white">Update Limit</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-3">
+        <div class="card p-3 border-danger">
+            <h5>Security</h5>
+            <p>Status: <strong>{{ card['status'] }}</strong></p>
+            <form method="POST">
+                <input type="hidden" name="action" value="toggle_block">
+                <button class="btn btn-danger w-100">
+                    {{ 'Unblock Card' if card['status'] == 'BLOCKED' else 'Block Card' }}
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
