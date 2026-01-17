@@ -6,6 +6,9 @@ import os
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from werkzeug.utils import secure_filename
+import qrcode
+from io import BytesIO
+from flask import send_file
 
 app = Flask(__name__)
 app.secret_key = "ultimate_banking_v6_secret"
@@ -706,6 +709,20 @@ def admin():
                            suspicious=suspicious, 
                            search_query=query)
 
+@app.route('/generate_qr/<card_number>')
+def generate_qr(card_number):
+    if 'user_id' not in session: return redirect(url_for('login'))
+    
+    # Generate QR Code
+    img = qrcode.make(card_number)
+    
+    # Save to memory buffer (no need to save file to disk)
+    buf = BytesIO()
+    img.save(buf)
+    buf.seek(0)
+    
+    return send_file(buf, mimetype='image/png')
+
 @app.route('/logout')
 def logout():
     session.clear()
@@ -714,6 +731,7 @@ def logout():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, port=5000)
+
 
 
 
