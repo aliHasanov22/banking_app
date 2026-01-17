@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h4><i class="fas fa-plus-circle"></i> Top Up Balance</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Add money to your wallet using an external source.</p>
+                
+                <form method="POST">
+                    <div class="mb-3">
+                        <label class="form-label">Select Card/Wallet to Fund</label>
+                        <select name="card_num" class="form-select" required>
+                            {% for c in cards %}
+                            <option value="{{ c['card_number'] }}">
+                                {{ c['card_name'] }} ({{ c['currency'] }}) - Ends in {{ c['card_number'][-4:] }}
+                            </option>
+                            {% else %}
+                            <option disabled>No active cards found. Please order a card first.</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Amount</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" name="amount" step="0.01" class="form-control" placeholder="100.00" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">From External Source</label>
+                        <input type="text" class="form-control" placeholder="**** **** **** 1234 (External Bank)" disabled>
+                        <div class="form-text">Simulating transfer from your external bank account.</div>
+                    </div>
+
+                    <button class="btn btn-success w-100 py-2">Add Money</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
