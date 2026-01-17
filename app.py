@@ -186,62 +186,90 @@ def dashboard():
 def transfer():
     if 'user_id' not in session: return redirect(url_for('login'))
     uid = session['user_id']
-    conn = get_db()
     
-    if request.method == 'POST':
-        sender_card_num = request.form['sender_card']
-        receiver_card_num = request.form['receiver_card']
-        amount = float(request.form['amount'])
-        pin = request.form['pin']
-        
-        # Validations
-        sender = conn.execute("SELECT * FROM cards WHERE card_number=?", (sender_card_num,)).fetchone()
-        receiver = conn.execute("SELECT * FROM cards WHERE card_number=?", (receiver_card_num,)).fetchone()
-        
-        if not sender or sender['card_pin'] != pin:
-            flash("Wrong Card or PIN", "danger")
-        elif not receiver:
-            flash("Receiver card not found", "danger")
-        elif receiver['status'] != 'ACTIVE':
-            flash("Receiver card is inactive", "danger")
-        elif receiver['currency'] != sender['currency']:
-            flash(f"Currency mismatch. Sender is {sender['currency']}, Receiver is {receiver['currency']}", "danger")
-        elif receiver['account_id'] == uid:
-            flash("Cannot send to yourself", "warning")
-        elif amount > sender['expense_limit']:
-            flash(f"Amount exceeds limit ({sender['expense_limit']})", "danger")
-        else:
-            # Balance check
-            bal_row = conn.execute("SELECT amount FROM balances WHERE account_id=? AND currency=?", (uid, sender['currency'])).fetchone()
-            current_bal = bal_row['amount'] if bal_row else 0.0
+    conn = get_db() # Open DB Once
+    
+    try:
+        if request.method == 'POST':
+            sender_card_num = request.form['sender_card']
+            receiver_card_num = request.form['receiver_card']
+            try:
+                amount = float(request.form['amount'])
+            except:
+                flash("Invalid amount", "danger")
+                return redirect(url_for('transfer'))
             
-            if amount > current_bal:
-                flash("Insufficient funds in wallet", "danger")
+            pin = request.form['pin']
+            
+            # Validation
+            sender_card = conn.execute("SELECT * FROM cards WHERE card_number=?", (sender_card_num,)).fetchone()
+            rcv = conn.execute("SELECT account_id, status, currency FROM cards WHERE card_number=?", (receiver_card_num,)).fetchone()
+            
+            if not sender_card or sender_card['card_pin'] != pin:
+                flash("Invalid Card or PIN", "danger")
+            elif not rcv:
+                flash("Receiver not found", "danger")
+            elif rcv['status'] != 'ACTIVE':
+                flash("Receiver card inactive", "danger")
+            elif rcv['currency'] != sender_card['currency']:
+                flash("Currency mismatch", "danger")
+            elif rcv['account_id'] == uid:
+                flash("Cannot send to self", "warning")
+            elif amount > sender_card['expense_limit']:
+                flash("Exceeds card expense limit", "danger")
             else:
-                # Execute
-                # Deduct from Sender
-                conn.execute("UPDATE balances SET amount=? WHERE account_id=? AND currency=?", (current_bal - amount, uid, sender['currency']))
-                # Add to Receiver
-                rcv_bal_row = conn.execute("SELECT amount FROM balances WHERE account_id=? AND currency=?", (receiver['account_id'], sender['currency'])).fetchone()
-                rcv_bal = rcv_bal_row['amount'] if rcv_bal_row else 0.0
-                if not rcv_bal_row:
-                    conn.execute("INSERT INTO balances VALUES (?, ?, ?)", (receiver['account_id'], sender['currency'], amount))
+                # Check Wallet Balance
+                bal_row = conn.execute("SELECT amount FROM balances WHERE account_id=? AND currency=?", (uid, sender_card['currency'])).fetchone()
+                bal = bal_row['amount'] if bal_row else 0.0
+                
+                if amount > bal:
+                    flash("Insufficient funds", "danger")
                 else:
-                    conn.execute("UPDATE balances SET amount=? WHERE account_id=? AND currency=?", (rcv_bal + amount, receiver['account_id'], sender['currency']))
-                
-                # Logs
-                log_transaction(uid, "SENT", sender['currency'], -amount, f"To {receiver_card_num}")
-                log_transaction(receiver['account_id'], "RECEIVED", sender['currency'], amount, f"From {sender_card_num}")
-                
-                flash("Transfer Successful!", "success")
-                conn.commit() # Commit transfer first
-                process_bonus(uid, sender['currency'], amount) # Then bonus
-                conn.close()
-                return redirect(url_for('history'))
+                    # 1. Execute Transfer (Update Balances)
+                    conn.execute("UPDATE balances SET amount=? WHERE account_id=? AND currency=?", (bal - amount, uid, sender_card['currency']))
+                    
+                    # Update Receiver Balance
+                    rcv_bal_row = conn.execute("SELECT amount FROM balances WHERE account_id=? AND currency=?", (rcv['account_id'], sender_card['currency'])).fetchone()
+                    rcv_bal = rcv_bal_row['amount'] if rcv_bal_row else 0.0
+                    
+                    if not rcv_bal_row:
+                        conn.execute("INSERT INTO balances VALUES (?, ?, ?)", (rcv['account_id'], sender_card['currency'], amount))
+                    else:
+                        conn.execute("UPDATE balances SET amount=? WHERE account_id=? AND currency=?", (rcv_bal + amount, rcv['account_id'], sender_card['currency']))
+                    
+                    # 2. Log Transactions MANUALLY (Using the SAME connection 'conn')
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    
+                    # Log Sender
+                    conn.execute("INSERT INTO transactions (account_id, timestamp, type, currency, amount, note) VALUES (?, ?, ?, ?, ?, ?)",
+                                 (uid, timestamp, "SENT", sender_card['currency'], -amount, f"To {receiver_card_num}"))
+                    
+                    # Log Receiver
+                    conn.execute("INSERT INTO transactions (account_id, timestamp, type, currency, amount, note) VALUES (?, ?, ?, ?, ?, ?)",
+                                 (rcv['account_id'], timestamp, "RECEIVED", sender_card['currency'], amount, f"From {sender_card_num}"))
+                    
+                    conn.commit() # Commit all changes
+                    conn.close()  # Close DB explicitly BEFORE calling bonus (which opens its own DB)
+                    
+                    # 3. Process Bonus (Safe now because DB is closed)
+                    process_bonus(uid, sender_card['currency'], amount)
+                    
+                    flash("Transfer Successful!", "success")
+                    return redirect(url_for('history'))
 
-    my_cards = conn.execute("SELECT * FROM cards WHERE account_id=? AND status='ACTIVE'", (uid,)).fetchall()
-    conn.close()
-    return render_template('transfer.html', cards=my_cards)
+        # GET Request logic
+        active_cards = conn.execute("SELECT * FROM cards WHERE account_id=? AND status='ACTIVE'", (uid,)).fetchall()
+        return render_template('transfer.html', cards=active_cards)
+
+    except Exception as e:
+        print(e)
+        flash("An error occurred during transfer.", "danger")
+        return redirect(url_for('transfer'))
+        
+    finally:
+        # Safety close
+        try: conn.close()
+        except: pass
 # --- NEW MODULE: TOP UP (Add Money) ---
 @app.route('/topup', methods=['GET', 'POST'])
 def topup():
@@ -469,6 +497,7 @@ def logout():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, port=5000)
+
 
 
 
