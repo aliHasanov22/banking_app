@@ -658,38 +658,42 @@ def admin():
     if not session.get('is_admin'): 
         return redirect(url_for('login'))
     
-    # 2. Ensure DB has 'status' column
-    check_and_update_db_schema()
-    
     conn = get_db()
     
-    # 3. Handle Actions (Approve, Suspend, Unsuspend)
+    # 2. Handle Actions (Approve User, Suspend User, APPROVE CARD)
     if 'action' in request.args and 'target_id' in request.args:
         action = request.args.get('action')
         target = request.args.get('target_id')
         
-        new_status = 'ACTIVE'
         msg = ""
         
         if action == 'suspend':
-            new_status = 'SUSPENDED'
-            msg = f"User {target} has been SUSPENDED."
-        elif action == 'unsuspend':
-            new_status = 'ACTIVE'
-            msg = f"User {target} has been REACTIVATED."
-        elif action == 'approve':
-            new_status = 'ACTIVE'
-            msg = f"User {target} has been APPROVED and is now Active."
+            conn.execute("UPDATE users SET status='SUSPENDED' WHERE account_id=?", (target,))
+            msg = f"User {target} SUSPENDED."
             
-        conn.execute("UPDATE users SET status=? WHERE account_id=?", (new_status, target))
+        elif action == 'unsuspend':
+            conn.execute("UPDATE users SET status='ACTIVE' WHERE account_id=?", (target,))
+            msg = f"User {target} REACTIVATED."
+            
+        elif action == 'approve_user':
+            conn.execute("UPDATE users SET status='ACTIVE' WHERE account_id=?", (target,))
+            msg = f"User {target} APPROVED."
+
+        # --- NEW: CARD APPROVAL LOGIC ---
+        elif action == 'approve_card':
+            conn.execute("UPDATE cards SET status='ACTIVE' WHERE card_number=?", (target,))
+            msg = f"Card {target} is now ACTIVE."
+        # --------------------------------
+            
         conn.commit()
         flash(msg, "success")
-        return redirect(url_for('admin', search_query=target))
+        return redirect(url_for('admin'))
 
-    # 4. Handle Search & Display
-    # We check both POST (form submit) and GET (url redirect) for a query
+    # 3. Fetch Pending Cards Queue (For the new section)
+    pending_cards = conn.execute("SELECT * FROM cards WHERE status='PENDING'").fetchall()
+
+    # 4. Handle User Search (Standard Logic)
     query = request.form.get('search_query') or request.args.get('search_query')
-    
     searched_user = None
     user_cards = []
     user_txs = []
@@ -697,37 +701,25 @@ def admin():
     suspicious = []
     
     if query:
-        # Search by Account ID, National ID, or Email
         searched_user = conn.execute("SELECT * FROM users WHERE account_id=? OR id_card=? OR email=?", (query, query, query)).fetchone()
-        
         if searched_user:
             uid = searched_user['account_id']
-            
-            # Fetch Balances
             user_bals = conn.execute("SELECT * FROM balances WHERE account_id=?", (uid,)).fetchall()
-            
-            # Fetch Cards (Card numbers are masked in the HTML template, not here)
             user_cards = conn.execute("SELECT * FROM cards WHERE account_id=?", (uid,)).fetchall()
-            
-            # Fetch Recent Transactions
             user_txs = conn.execute("SELECT * FROM transactions WHERE account_id=? ORDER BY id DESC LIMIT 50", (uid,)).fetchall()
-            
-            # Fetch Suspicious Activity (High amounts or Fee events)
-            suspicious = conn.execute("""
-                SELECT * FROM transactions 
-                WHERE account_id=? AND (abs(amount) > 5000 OR type='FEE') 
-                ORDER BY id DESC
-            """, (uid,)).fetchall()
+            suspicious = conn.execute("SELECT * FROM transactions WHERE account_id=? AND (abs(amount) > 5000 OR type='FEE') ORDER BY id DESC", (uid,)).fetchall()
 
     conn.close()
     
+    # Pass 'pending_cards' to the template
     return render_template('admin.html', 
                            user=searched_user, 
                            cards=user_cards, 
                            txs=user_txs, 
                            balances=user_bals, 
                            suspicious=suspicious, 
-                           search_query=query)
+                           search_query=query,
+                           pending_cards=pending_cards)
 
 @app.route('/create_deposit', methods=['POST'])
 def create_deposit():
@@ -841,6 +833,7 @@ def logout():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, port=5000)
+
 
 
 
