@@ -152,7 +152,7 @@ def login():
         pin = request.form['pin']
         
         # Admin Login
-        if uid == "9999" and pin == "admin":
+        if uid == "0000" and pin == "1234":
             session['user_id'] = "9999"
             session['is_admin'] = True
             session['name'] = "Administrator"
@@ -648,6 +648,7 @@ def logout():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, port=5000)
+
 
 
 
