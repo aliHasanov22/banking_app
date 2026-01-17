@@ -142,7 +142,11 @@ def process_bonus(user_id, currency, transfer_amount):
 
 @app.route('/')
 def index():
-    if 'user_id' in session: return redirect(url_for('dashboard'))
+    if 'user_id' in session:
+        # FIX: Check if Admin, send to Admin Panel. If User, send to Dashboard.
+        if session.get('is_admin'):
+            return redirect(url_for('admin'))
+        return redirect(url_for('dashboard'))
     return redirect(url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -207,7 +211,15 @@ def register():
 
 @app.route('/dashboard')
 def dashboard():
-    if 'user_id' not in session: return redirect(url_for('login'))
+    # 1. Check if user is logged in
+    if 'user_id' not in session: 
+        return redirect(url_for('login'))
+    
+    # 2. SECURITY FIX: If Admin tries to access Dashboard, force them to Admin Panel
+    if session.get('is_admin'):
+        return redirect(url_for('admin'))
+
+    # 3. Standard User Dashboard Logic
     uid = session['user_id']
     conn = get_db()
     
@@ -226,6 +238,7 @@ def dashboard():
     # Stats
     tx_count = conn.execute("SELECT COUNT(*) FROM transactions WHERE account_id=?", (uid,)).fetchone()[0]
     conn.close()
+    
     return render_template('dashboard.html', balances=balances, cards=cards_with_balance, tx_count=tx_count)
 
 # --- V7 FEATURES (Chat, Profile, Notifications) ---
@@ -648,6 +661,7 @@ def logout():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, port=5000)
+
 
 
 
