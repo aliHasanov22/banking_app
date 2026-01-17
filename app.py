@@ -248,8 +248,7 @@ def topup():
     if 'user_id' not in session: return redirect(url_for('login'))
     uid = session['user_id']
     
-    # MOVED: Only open DB when we are sure we need it, or use try/finally
-    conn = get_db()
+    conn = get_db()  # Open connection ONCE
     
     try:
         if request.method == 'POST':
@@ -258,16 +257,18 @@ def topup():
                 amount = float(request.form['amount'])
             except ValueError:
                 flash("Invalid amount entered.", "danger")
-                # Connection closes in 'finally' block now
                 return redirect(url_for('topup'))
                 
             if amount <= 0:
                 flash("Amount must be positive.", "warning")
             else:
+                # 1. Check Card
                 card = conn.execute("SELECT currency, card_number FROM cards WHERE card_number=? AND account_id=?", (card_num, uid)).fetchone()
                 
                 if card:
                     curr = card['currency']
+                    
+                    # 2. Update Balance (Using existing 'conn')
                     bal_row = conn.execute("SELECT amount FROM balances WHERE account_id=? AND currency=?", (uid, curr)).fetchone()
                     current_bal = bal_row['amount'] if bal_row else 0.0
                     
@@ -276,26 +277,23 @@ def topup():
                     else:
                         conn.execute("UPDATE balances SET amount=? WHERE account_id=? AND currency=?", (current_bal + amount, uid, curr))
                     
-                    log_transaction(uid, "DEPOSIT", curr, amount, f"Top Up via Card {card['card_number'][-4:]}")
+                    # 3. Log Transaction MANUALLY (Using existing 'conn' to avoid lock error)
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    conn.execute("INSERT INTO transactions (account_id, timestamp, type, currency, amount, note) VALUES (?, ?, ?, ?, ?, ?)",
+                                 (uid, timestamp, "DEPOSIT", curr, amount, f"Top Up via Card {card['card_number'][-4:]}"))
                     
-                    conn.commit()
+                    conn.commit() # Commit everything at once
                     flash(f"Successfully added {amount:.2f} {curr} to your wallet!", "success")
                     return redirect(url_for('dashboard'))
                 else:
                     flash("Card not found.", "danger")
 
-        # GET request logic
+        # GET request
         my_cards = conn.execute("SELECT * FROM cards WHERE account_id=? AND status='ACTIVE'", (uid,)).fetchall()
         return render_template('topup.html', cards=my_cards)
 
     finally:
-        # This runs NO MATTER WHAT happens above
-        conn.close()
-
-    # Get active cards to show in the dropdown
-    my_cards = conn.execute("SELECT * FROM cards WHERE account_id=? AND status='ACTIVE'", (uid,)).fetchall()
-    conn.close()
-    return render_template('topup.html', cards=my_cards)
+        conn.close() # Always close the connection
 # 5. Cards & Settings
 @app.route('/cards')
 def cards():
@@ -471,6 +469,7 @@ def logout():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, port=5000)
+
 
 
 
