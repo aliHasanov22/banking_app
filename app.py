@@ -501,13 +501,28 @@ def claim_bonus(currency):
     conn.close()
     return redirect(url_for('bonuses'))
 
+# --- history
 @app.route('/history')
 def history():
     if 'user_id' not in session: return redirect(url_for('login'))
     conn = get_db()
+    
+    # 1. Fetch Transactions
     txs = conn.execute("SELECT * FROM transactions WHERE account_id=? ORDER BY id DESC LIMIT 20", (session['user_id'],)).fetchall()
+    
+    # 2. Calculate Chart Data (Income vs Expense)
+    income = 0
+    expense = 0
+    for t in txs:
+        if t['amount'] > 0:
+            income += t['amount']
+        else:
+            expense += abs(t['amount'])
+            
     conn.close()
-    return render_template('history.html', txs=txs)
+    
+    # Pass data to template
+    return render_template('history.html', txs=txs, chart_income=income, chart_expense=expense)
 
 @app.route('/support', methods=['GET', 'POST'])
 def support():
@@ -550,3 +565,4 @@ def logout():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, port=5000)
+
