@@ -1,65 +1,229 @@
-{% extends "base.html" %}
-{% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="text-danger"><i class="fas fa-user-shield"></i> Admin Panel</h2>
-    <span class="badge bg-dark">Administrator Access</span>
-</div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>NEXO Admin Command</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #1a1f3c; color: #e0e6ed; font-family: 'Segoe UI', sans-serif; }
+        .card { background-color: #262f4d; border: 1px solid #3a4b6e; color: white; }
+        .form-control { background: #13172b; border: 1px solid #3a4b6e; color: white; }
+        .form-control:focus { background: #13172b; color: white; border-color: #4facfe; box-shadow: none; }
+        .text-nexo { color: #4facfe; }
+        .table-dark { background-color: #262f4d; }
+        .table-dark td, .table-dark th { border-color: #3a4b6e; color: #aab0c7; }
+        
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        .bg-active { background-color: rgba(46, 204, 113, 0.2); color: #2ecc71; }
+        .bg-suspended { background-color: rgba(231, 76, 60, 0.2); color: #e74c3c; }
+    </style>
+</head>
+<body class="p-4">
 
-<div class="row">
-    <div class="col-md-6 mb-4">
-        <div class="card border-warning">
-            <div class="card-header bg-warning text-dark">
-                <strong>Pending Card Approvals</strong>
-            </div>
-            <ul class="list-group list-group-flush">
-                {% if not cards %}
-                <li class="list-group-item">No cards waiting for approval.</li>
-                {% endif %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-5">
+        <h2 class="fw-bold"><i class="fas fa-user-shield text-nexo me-2"></i>Admin Command Center</h2>
+        <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm">Logout</a>
+    </div>
 
-                {% for c in cards %}
-                <li class="list-group-item">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <strong>User {{ c['account_id'] }}</strong><br>
-                            <small>{{ c['card_type'] }} - {{ c['currency'] }}</small>
+    <div class="row justify-content-center mb-5">
+        <div class="col-md-6">
+            <form method="POST">
+                <div class="input-group input-group-lg">
+                    <span class="input-group-text bg-dark border-secondary text-white"><i class="fas fa-search"></i></span>
+                    <input type="text" name="search_query" class="form-control" placeholder="Search by Account ID, Email, or National ID..." value="{{ search_query if search_query else '' }}" autofocus>
+                    <button class="btn btn-primary fw-bold" type="submit">SEARCH USER</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if user %}
+    <div class="row g-4">
+        
+        <div class="col-lg-4">
+            <div class="card h-100 shadow-lg">
+                <div class="card-header border-bottom border-secondary d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold">User Profile</h5>
+                    <span class="status-badge {{ 'bg-suspended' if user.status == 'SUSPENDED' else 'bg-active' }}">
+                        {{ user.status or 'ACTIVE' }}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <div class="rounded-circle bg-dark d-inline-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                            <i class="fas fa-user fa-3x text-secondary"></i>
                         </div>
-                        <form method="POST">
-                            <input type="hidden" name="approve_card" value="true">
-                            <input type="hidden" name="card_num" value="{{ c['card_number'] }}">
-                            <button class="btn btn-success btn-sm">Approve</button>
-                        </form>
+                        <h4 class="mt-3">{{ user.name }}</h4>
+                        <small class="text-muted">ID: {{ user.account_id }}</small>
                     </div>
-                </li>
-                {% endfor %}
-            </ul>
-        </div>
-    </div>
+                    
+                    <ul class="list-group list-group-flush bg-transparent">
+                        <li class="list-group-item bg-transparent text-white d-flex justify-content-between">
+                            <span class="text-muted">National ID</span>
+                            <span class="fw-bold">{{ user.id_card }}</span>
+                        </li>
+                        <li class="list-group-item bg-transparent text-white d-flex justify-content-between">
+                            <span class="text-muted">Email</span>
+                            <span>{{ user.email }}</span>
+                        </li>
+                        <li class="list-group-item bg-transparent text-white d-flex justify-content-between">
+                            <span class="text-muted">Phone</span>
+                            <span>{{ user.phone }}</span>
+                        </li>
+                    </ul>
 
-    <div class="col-md-6 mb-4">
-        <div class="card border-info">
-            <div class="card-header bg-info text-white">
-                <strong>Open Support Tickets</strong>
+                    <hr class="border-secondary">
+                    
+                    <div class="d-grid gap-2">
+                        {% if user.status == 'SUSPENDED' %}
+                            <a href="{{ url_for('admin', search_query=user.account_id, action='unsuspend', target_id=user.account_id) }}" class="btn btn-success fw-bold">
+                                <i class="fas fa-unlock me-2"></i>REACTIVATE ACCOUNT
+                            </a>
+                        {% else %}
+                            <a href="{{ url_for('admin', search_query=user.account_id, action='suspend', target_id=user.account_id) }}" class="btn btn-danger fw-bold">
+                                <i class="fas fa-ban me-2"></i>SUSPEND ACCOUNT
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
-            <ul class="list-group list-group-flush">
-                {% if not tickets %}
-                <li class="list-group-item">No open tickets.</li>
-                {% endif %}
+        </div>
 
-                {% for t in tickets %}
-                <li class="list-group-item">
-                    <p class="mb-1"><strong>User {{ t['account_id'] }}:</strong> {{ t['issue'] }}</p>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <small class="text-muted">{{ t['timestamp'] }}</small>
-                        <form method="POST">
-                            <input type="hidden" name="resolve_ticket" value="true">
-                            <input type="hidden" name="ticket_id" value="{{ t['id'] }}">
-                            <button class="btn btn-primary btn-sm">Mark Resolved</button>
-                        </form>
+        <div class="col-lg-8">
+            <div class="row g-4">
+                
+                <div class="col-md-6">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header border-bottom border-secondary">
+                            <h6 class="mb-0 text-nexo fw-bold">Current Balances</h6>
+                        </div>
+                        <div class="card-body p-0">
+                            <table class="table table-dark table-striped mb-0">
+                                <thead><tr><th>Currency</th><th class="text-end">Amount</th></tr></thead>
+                                <tbody>
+                                    {% for bal in balances %}
+                                    <tr>
+                                        <td>{{ bal.currency }}</td>
+                                        <td class="text-end fw-bold text-success">{{ bal.amount }}</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td colspan="2" class="text-center text-muted">No funds found</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </li>
-                {% endfor %}
-            </ul>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header border-bottom border-secondary">
+                            <h6 class="mb-0 text-nexo fw-bold">Issued Cards (Masked)</h6>
+                        </div>
+                        <div class="card-body p-0">
+                            <ul class="list-group list-group-flush">
+                                {% for card in cards %}
+                                <li class="list-group-item bg-transparent text-white border-secondary">
+                                    <div class="d-flex justify-content-between">
+                                        <span>
+                                            <i class="fas fa-credit-card me-2"></i>
+                                            <span class="fw-bold">**** **** **** {{ card.card_number[-4:] }}</span>
+                                        </span>
+                                        <span class="badge bg-secondary">{{ card.currency }}</span>
+                                    </div>
+                                    <small class="text-muted">Limit: {{ card.expense_limit }} | Pin: {{ card.card_pin }}</small>
+                                </li>
+                                {% else %}
+                                <li class="list-group-item bg-transparent text-muted">No cards issued.</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <div class="card border-warning shadow-sm">
+                        <div class="card-header bg-warning text-dark fw-bold">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Flagged Suspicious Activity ( > 5000 or Fees)
+                        </div>
+                        <div class="card-body p-0">
+                            <table class="table table-dark table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Type</th>
+                                        <th>Amount</th>
+                                        <th>Note</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for s in suspicious %}
+                                    <tr>
+                                        <td class="text-danger">{{ s.timestamp }}</td>
+                                        <td>{{ s.type }}</td>
+                                        <td class="fw-bold text-danger">{{ s.amount }} {{ s.currency }}</td>
+                                        <td>{{ s.note }}</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="4" class="text-center py-3 text-success">
+                                            <i class="fas fa-check-circle me-2"></i>No suspicious activity detected.
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <div class="card shadow-sm">
+                        <div class="card-header border-bottom border-secondary">
+                            <h6 class="mb-0 fw-bold">Full Transaction Log (Last 50)</h6>
+                        </div>
+                        <div class="card-body p-0 table-responsive">
+                            <table class="table table-dark table-sm mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Type</th>
+                                        <th>Amt</th>
+                                        <th>Note</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for t in txs %}
+                                    <tr>
+                                        <td style="font-size:0.85rem">{{ t.timestamp }}</td>
+                                        <td>{{ t.type }}</td>
+                                        <td class="{{ 'text-success' if t.amount > 0 else 'text-danger' }}">
+                                            {{ t.amount }} {{ t.currency }}
+                                        </td>
+                                        <td class="text-muted small">{{ t.note }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
         </div>
     </div>
+    {% elif search_query %}
+    <div class="alert alert-danger text-center">User not found with query: <strong>{{ search_query }}</strong></div>
+    {% endif %}
+
 </div>
-{% endblock %}
+
+</body>
+</html>
