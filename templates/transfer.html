@@ -1,31 +1,164 @@
 {% extends "base.html" %}
+
 {% block content %}
-<h2>Transfer Money</h2>
-<div class="card p-4 mt-3 col-md-8">
-    <form method="POST">
-        <div class="mb-3">
-            <label>Select Your Card (Sender)</label>
-            <select name="sender_card" class="form-select">
-                {% for c in cards %}
-                <option value="{{ c['card_number'] }}">{{ c['card_name'] }} - {{ c['currency'] }} ({{ c['card_number'][-4:] }})</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="mb-3">
-            <label>Receiver Card Number</label>
-            <input type="text" name="receiver_card" class="form-control" placeholder="16-digit number" required>
-        </div>
-        <div class="row">
-            <div class="col-md-6 mb-3">
-                <label>Amount</label>
-                <input type="number" name="amount" step="0.01" class="form-control" required>
+<div class="container py-4">
+    <h2 class="mb-4 fw-bold"><i class="fas fa-exchange-alt text-primary me-2"></i>Money Transfer</h2>
+
+    <form method="POST" action="{{ url_for('transfer') }}" id="transferForm">
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="card shadow-sm h-100 border-0">
+                    <div class="card-header bg-white py-3">
+                        <h5 class="mb-0 fw-bold text-secondary">From Account</h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <label class="form-label fw-bold">Select Card to Pay From</label>
+                        <select name="sender_card" id="senderCardSelect" class="form-select form-select-lg mb-3" required onchange="updateTransferUI()">
+                            {% for card in cards %}
+                            <option value="{{ card.card_number }}" 
+                                    data-balance="{{ card.balance }}" 
+                                    data-limit="{{ card.expense_limit }}"
+                                    data-currency="{{ card.currency }}">
+                                {{ card.card_type }} ****{{ card.card_number[-4:] }} | Bal: {{ card.balance }} {{ card.currency }}
+                            </option>
+                            {% endfor %}
+                        </select>
+
+                        <div class="alert alert-info border-0 bg-light d-flex justify-content-between align-items-center">
+                            <span>Spending Limit:</span>
+                            <span class="fw-bold" id="limitDisplay">Select a card</span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Confirm PIN</label>
+                            <input type="password" name="pin" class="form-control form-control-lg" placeholder="****" maxlength="4" required>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="col-md-6 mb-3">
-                <label>Your PIN</label>
-                <input type="password" name="pin" class="form-control" required>
+
+            <div class="col-lg-6">
+                 <div class="card shadow-sm h-100 border-0">
+                     <div class="card-header bg-white py-3">
+                        <h5 class="mb-0 fw-bold text-secondary">To Recipient</h5>
+                    </div>
+                    <div class="card-body p-4">
+                         <div class="mb-4">
+                            <label class="form-label fw-bold">Receiver Card Number</label>
+                            <input type="text" name="receiver_card" class="form-control form-control-lg" placeholder="XXXX XXXX XXXX XXXX" required>
+                        </div>
+
+                         <div class="mb-4">
+                            <label class="form-label fw-bold">Amount to Send</label>
+                            <div class="input-group input-group-lg">
+                                <input type="number" id="amountInput" name="amount" class="form-control fw-bold" placeholder="0.00" step="0.01" min="1" required onkeyup="updateTransferUI()" onchange="updateTransferUI()">
+                                <span class="input-group-text fw-bold" id="currencyLabel">---</span>
+                            </div>
+                            <small class="text-muted">Amounts over 5000 incur a 2% fee (min 1.00).</small>
+                        </div>
+
+                        <div id="feeAlert" class="alert alert-warning d-none">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <span id="feeText"></span>
+                        </div>
+                        
+                         <div id="limitAlert" class="alert alert-danger d-none">
+                            <i class="fas fa-times-circle me-2"></i>
+                            Exceeds your card's spending limit!
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-light rounded">
+                            <h5 class="mb-0">Total to Pay:</h5>
+                            <h3 class="mb-0 fw-bold text-primary" id="totalPayDisplay">0.00</h3>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg py-3 fw-bold" id="submitBtn">
+                                Send Money Now <i class="fas fa-paper-plane ms-2"></i>
+                            </button>
+                        </div>
+                    </div>
+                 </div>
             </div>
         </div>
-        <button class="btn btn-success w-100">Send Money</button>
     </form>
 </div>
+
+<script>
+    // Initialize UI on load
+    document.addEventListener("DOMContentLoaded", function() {
+        updateTransferUI();
+    });
+
+    function updateTransferUI() {
+        const select = document.getElementById('senderCardSelect');
+        const amountInput = document.getElementById('amountInput');
+        const feeAlert = document.getElementById('feeAlert');
+        const limitAlert = document.getElementById('limitAlert');
+        const submitBtn = document.getElementById('submitBtn');
+
+        // 1. Get Selected Card Data
+        const selectedOption = select.options[select.selectedIndex];
+        const limit = parseFloat(selectedOption.getAttribute('data-limit')) || 0;
+        const balance = parseFloat(selectedOption.getAttribute('data-balance')) || 0;
+        const currency = selectedOption.getAttribute('data-currency') || '---';
+        
+        // 2. Update Basic UI Labels
+        document.getElementById('limitDisplay').innerText = `${limit.toFixed(2)} ${currency}`;
+        document.getElementById('currencyLabel').innerText = currency;
+        
+        // 3. Get and Validate Amount
+        let amount = parseFloat(amountInput.value);
+        if (isNaN(amount) || amount < 0) amount = 0;
+
+        // 4. Calculate Fee Logic
+        let fee = 0;
+        if (amount > 5000) {
+            fee = amount * 0.02;
+            if (fee < 1.0) fee = 1.0; // Minimum fee
+            
+            document.getElementById('feeText').innerText = `High amount fee (2%): +${fee.toFixed(2)} ${currency}`;
+            feeAlert.classList.remove('d-none');
+        } else {
+            feeAlert.classList.add('d-none');
+        }
+
+        const total = amount + fee;
+        document.getElementById('totalPayDisplay').innerText = `${total.toFixed(2)} ${currency}`;
+
+        // 5. Check Limits and Enable/Disable Submit
+        let isValid = true;
+
+        // Check against Spending Limit
+        if (amount > limit) {
+            limitAlert.innerText = `Exceeds spending limit by ${(amount - limit).toFixed(2)} ${currency}!`;
+            limitAlert.classList.remove('d-none');
+            isValid = false;
+        } else {
+             // Show remaining limit feedback if typing
+             if(amount > 0) {
+                 limitAlert.innerText = `You will have ${(limit - amount).toFixed(2)} ${currency} remaining limit.`;
+                 limitAlert.classList.remove('alert-danger');
+                 limitAlert.classList.add('alert-success');
+                 limitAlert.classList.remove('d-none');
+             } else {
+                 limitAlert.classList.add('d-none');
+                 limitAlert.classList.remove('alert-success');
+                 limitAlert.classList.add('alert-danger');
+             }
+        }
+
+        // Check against Actual Balance
+        if (total > balance) {
+             // We can reuse the limit alert box for balance check too
+             limitAlert.innerText = `Insufficient funds. You need ${total.toFixed(2)} ${currency}.`;
+             limitAlert.classList.remove('alert-success');
+             limitAlert.classList.add('alert-danger');
+             limitAlert.classList.remove('d-none');
+             isValid = false;
+        }
+        
+        submitBtn.disabled = !isValid || amount <= 0;
+    }
+</script>
 {% endblock %}
