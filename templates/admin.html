@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="text-danger"><i class="fas fa-user-shield"></i> Admin Panel</h2>
+    <span class="badge bg-dark">Administrator Access</span>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <strong>Pending Card Approvals</strong>
+            </div>
+            <ul class="list-group list-group-flush">
+                {% if not cards %}
+                <li class="list-group-item">No cards waiting for approval.</li>
+                {% endif %}
+
+                {% for c in cards %}
+                <li class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>User {{ c['account_id'] }}</strong><br>
+                            <small>{{ c['card_type'] }} - {{ c['currency'] }}</small>
+                        </div>
+                        <form method="POST">
+                            <input type="hidden" name="approve_card" value="true">
+                            <input type="hidden" name="card_num" value="{{ c['card_number'] }}">
+                            <button class="btn btn-success btn-sm">Approve</button>
+                        </form>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card border-info">
+            <div class="card-header bg-info text-white">
+                <strong>Open Support Tickets</strong>
+            </div>
+            <ul class="list-group list-group-flush">
+                {% if not tickets %}
+                <li class="list-group-item">No open tickets.</li>
+                {% endif %}
+
+                {% for t in tickets %}
+                <li class="list-group-item">
+                    <p class="mb-1"><strong>User {{ t['account_id'] }}:</strong> {{ t['issue'] }}</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">{{ t['timestamp'] }}</small>
+                        <form method="POST">
+                            <input type="hidden" name="resolve_ticket" value="true">
+                            <input type="hidden" name="ticket_id" value="{{ t['id'] }}">
+                            <button class="btn btn-primary btn-sm">Mark Resolved</button>
+                        </form>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

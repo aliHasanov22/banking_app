@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-5">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white text-center">
+                <h4><i class="fas fa-user-plus"></i> Create Account</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" name="name" class="form-control" required placeholder="John Doe">
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" class="form-control" required placeholder="john@example.com">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Phone</label>
+                            <input type="text" name="phone" class="form-control" required placeholder="+994...">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">ID Card Number</label>
+                        <input type="text" name="id_card" class="form-control" maxlength="7" required placeholder="7 characters (e.g. A123456)">
+                        <div class="form-text">Must be exactly 7 alphanumeric characters.</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Create PIN</label>
+                        <input type="password" name="pin" class="form-control" required placeholder="****">
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-success">Register Now</button>
+                        <a href="{{ url_for('login') }}" class="btn btn-outline-secondary">Back to Login</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
