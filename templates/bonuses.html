@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Bonus Center</h2>
+<p>Earn 1% cashback on transfers (Max 10.0 per month).</p>
+
+<table class="table table-bordered mt-3 bg-white">
+    <thead class="table-dark"><tr><th>Currency</th><th>Pending Balance</th><th>Earned This Month</th><th>Action</th></tr></thead>
+    <tbody>
+        {% for b in bonuses %}
+        <tr>
+            <td>{{ b['currency'] }}</td>
+            <td>{{ "%.2f"|format(b['balance']) }}</td>
+            <td>{{ "%.2f"|format(b['earned_this_month']) }}/10.00</td>
+            <td>
+                {% if b['balance'] >= 1.0 %}
+                <a href="{{ url_for('claim_bonus', currency=b['currency']) }}" class="btn btn-success btn-sm">Claim</a>
+                {% else %}
+                <span class="text-muted">Min 1.00 to claim</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4">No bonus history. Make a transfer to start earning!</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
