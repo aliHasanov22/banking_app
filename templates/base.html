@@ -3,100 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ATM Ultimate V6</title>
+    <title>ATM Ultimate V7</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* --- CORE LAYOUT (V7) --- */
         body { background-color: #f0f2f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         
-        /* Sidebar Styling */
-        .sidebar { min-height: 100vh; background: linear-gradient(180deg, #1a1f3c 0%, #2c3e50 100%); color: white; box-shadow: 4px 0 10px rgba(0,0,0,0.1); }
+        /* Sidebar - Merged V6 Gradient with V7 Structure */
+        .sidebar { 
+            min-height: 100vh; 
+            width: 260px; 
+            background: linear-gradient(180deg, #1a1f3c 0%, #2c3e50 100%); 
+            color: white; 
+            flex-shrink: 0;
+        }
         .sidebar h4 { font-weight: 700; letter-spacing: 1px; padding: 20px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .sidebar a { color: #aab0c7; text-decoration: none; padding: 16px 25px; display: block; transition: all 0.3s; border-left: 4px solid transparent; }
-        .sidebar a:hover, .sidebar a.active { background: rgba(255,255,255,0.1); color: #fff; border-left-color: #00d2ff; }
-        .sidebar i { width: 25px; text-align: center; }
+        .sidebar a { color: #aab0c7; text-decoration: none; display: block; padding: 15px 25px; transition: all 0.3s; border-left: 4px solid transparent; }
+        .sidebar a:hover, .sidebar a.active { background: rgba(255,255,255,0.1); color: white; border-left-color: #00d2ff; }
+        .sidebar i { width: 25px; text-align: center; margin-right: 10px; }
 
-        /* Card Designs */
+        /* Top Navbar (V7 New) */
+        .top-nav { background: white; padding: 10px 30px; display: flex; justify-content: flex-end; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .profile-img-nav { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #eee; }
+        .notif-btn { position: relative; cursor: pointer; font-size: 1.2rem; color: #555; margin-right: 20px; }
+        .notif-dot { position: absolute; top: -2px; right: -2px; width: 10px; height: 10px; background: red; border-radius: 50%; border: 2px solid white; display: none; }
+
+        /* --- V6 COMPONENT STYLES (Preserved) --- */
+        /* Bank Cards */
         .bank-card {
-            border-radius: 20px;
-            color: white;
-            padding: 25px;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-            transition: transform 0.3s ease;
-            min-height: 200px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
+            border-radius: 20px; color: white; padding: 25px; position: relative; overflow: hidden;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2); transition: transform 0.3s ease;
+            min-height: 200px; display: flex; flex-direction: column; justify-content: space-between;
         }
         .bank-card:hover { transform: translateY(-5px); }
-        
-        /* Dynamic Gradients */
-        .bg-gradient-visa { background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%); } /* Blue */
-        .bg-gradient-master { background: linear-gradient(135deg, #ff9966 0%, #ff5e62 100%); } /* Orange/Red */
-        .bg-gradient-dark { background: linear-gradient(135deg, #434343 0%, #000000 100%); } /* Black */
-
+        .bg-gradient-visa { background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%); }
+        .bg-gradient-master { background: linear-gradient(135deg, #ff9966 0%, #ff5e62 100%); }
+        .bg-gradient-dark { background: linear-gradient(135deg, #434343 0%, #000000 100%); }
         .card-chip { width: 50px; height: 35px; background: #ffd700; border-radius: 8px; margin-bottom: 20px; opacity: 0.8; }
         .card-number { font-size: 1.4rem; letter-spacing: 2px; font-family: 'Courier New', monospace; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
         .card-balance { font-size: 1.8rem; font-weight: bold; }
         
-        /* Wallet Boxes */
-        .wallet-box {
-            background: white; border-radius: 15px; border: none;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05); transition: 0.3s;
-        }
+        /* Wallet & Bonuses */
+        .wallet-box { background: white; border-radius: 15px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05); transition: 0.3s; }
         .wallet-box:hover { box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
-        
-        .content { padding: 40px; }
-        /* --- CIRCULAR PROGRESS DIAGRAMS --- */
-        .progress-ring-container {
-            position: relative;
-            width: 150px;
-            height: 150px;
-            margin: 0 auto;
-            border-radius: 50%;
-            /* The magic gradient will be set inline in HTML */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
-        }
-
-        .progress-ring-inner {
-            width: 120px;
-            height: 120px;
-            background-color: white;
-            border-radius: 50%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-        }
-
-        .bonus-card {
-            transition: transform 0.3s;
-            border: none;
-            border-radius: 15px;
-            overflow: hidden;
-        }
-        .bonus-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-        }
-
-        /* Colors for specific currencies */
+        .progress-ring-container { position: relative; width: 150px; height: 150px; margin: 0 auto; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 20px rgba(0,0,0,0.05); }
+        .progress-ring-inner { width: 120px; height: 120px; background-color: white; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .bonus-card { transition: transform 0.3s; border: none; border-radius: 15px; overflow: hidden; }
+        .bonus-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
         .ring-AZN { color: #007bff; --ring-color: #007bff; }
         .ring-USD { color: #28a745; --ring-color: #28a745; }
         .ring-EUR { color: #ffc107; --ring-color: #ffc107; }
+
+        /* --- CHAT WIDGET (V7 New) --- */
+        .chat-btn { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; background: #007bff; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 5px 20px rgba(0,123,255,0.4); cursor: pointer; z-index: 1000; transition: transform 0.3s; }
+        .chat-btn:hover { transform: scale(1.1); }
+        .chat-box { position: fixed; bottom: 100px; right: 30px; width: 350px; height: 450px; background: white; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); display: none; flex-direction: column; overflow: hidden; z-index: 1000; }
+        .chat-header { background: #007bff; color: white; padding: 15px; font-weight: bold; display: flex; justify-content: space-between; }
+        .chat-body { flex: 1; padding: 15px; overflow-y: auto; background: #f9f9f9; }
+        .chat-footer { padding: 10px; background: white; border-top: 1px solid #eee; display: flex; gap: 5px; }
+        .msg { padding: 8px 12px; border-radius: 15px; margin-bottom: 8px; max-width: 80%; font-size: 0.9rem; }
+        .msg-user { background: #007bff; color: white; align-self: flex-end; margin-left: auto; }
+        .msg-admin { background: #e9ecef; color: #333; align-self: flex-start; }
     </style>
 </head>
 <body>
     <div class="d-flex">
         {% if session.user_id and not session.is_admin %}
-        <div class="sidebar" style="width: 260px; flex-shrink: 0;">
-            <h4 class="text-center">ATM V6</h4>
+        <div class="sidebar">
+            <h4 class="text-center">ATM V7</h4>
             <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint == 'dashboard' else '' }}"><i class="fas fa-th-large"></i> Dashboard</a>
             <a href="{{ url_for('topup') }}" class="{{ 'active' if request.endpoint == 'topup' else '' }}"><i class="fas fa-plus-circle"></i> Top Up</a>
             <a href="{{ url_for('transfer') }}" class="{{ 'active' if request.endpoint == 'transfer' else '' }}"><i class="fas fa-exchange-alt"></i> Transfer</a>
@@ -104,22 +79,127 @@
             <a href="{{ url_for('bonuses') }}" class="{{ 'active' if request.endpoint == 'bonuses' else '' }}"><i class="fas fa-gift"></i> Bonuses</a>
             <a href="{{ url_for('history') }}" class="{{ 'active' if request.endpoint == 'history' else '' }}"><i class="fas fa-history"></i> History</a>
             <a href="{{ url_for('support') }}" class="{{ 'active' if request.endpoint == 'support' else '' }}"><i class="fas fa-headset"></i> Support</a>
+            <a href="{{ url_for('profile') }}" class="{{ 'active' if request.endpoint == 'profile' else '' }}"><i class="fas fa-user-circle"></i> Profile</a>
             <a href="{{ url_for('logout') }}" class="text-danger mt-5"><i class="fas fa-sign-out-alt"></i> Logout</a>
         </div>
         {% endif %}
 
-        <div class="flex-grow-1 content">
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ category }} shadow-sm rounded-pill px-4">{{ message }}</div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
-            {% block content %}{% endblock %}
+        <div class="flex-grow-1">
+            {% if session.user_id %}
+            <div class="top-nav">
+                <div class="notif-btn dropdown">
+                    <i class="fas fa-bell" id="notifDropdown" data-bs-toggle="dropdown"></i>
+                    <div class="notif-dot"></div>
+                    <ul class="dropdown-menu dropdown-menu-end shadow p-2" style="width: 300px;" id="notifList">
+                        <li><h6 class="dropdown-header">Recent Activity</h6></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li class="text-center small text-muted">Loading...</li>
+                    </ul>
+                </div>
+                <a href="{{ url_for('profile') }}" class="d-flex align-items-center text-decoration-none text-dark">
+                    <span class="me-2 fw-bold d-none d-md-block">{{ session.name }}</span>
+                    <img src="{{ url_for('static', filename='uploads/' + (session.profile_pic if session.profile_pic else 'default.png')) }}" 
+                         class="profile-img-nav" onerror="this.src='https://via.placeholder.com/40'">
+                </a>
+            </div>
+            {% endif %}
+
+            <div class="p-4">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for cat, msg in messages %}
+                            <div class="alert alert-{{ cat }} shadow-sm">{{ msg }}</div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                {% block content %}{% endblock %}
+            </div>
         </div>
     </div>
+
+    {% if session.user_id %}
+    <div class="chat-btn" onclick="toggleChat()"><i class="fas fa-comments"></i></div>
+    <div class="chat-box" id="chatBox">
+        <div class="chat-header">
+            <span><i class="fas fa-headset me-2"></i> Support Chat</span>
+            <span style="cursor: pointer;" onclick="toggleChat()">&times;</span>
+        </div>
+        <div class="chat-body d-flex flex-column" id="chatContent">
+            <div class="text-center text-muted small mt-2">Start chatting with us...</div>
+        </div>
+        <div class="chat-footer">
+            <input type="text" id="chatInput" class="form-control form-control-sm" placeholder="Type a message...">
+            <button class="btn btn-primary btn-sm" onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
+        </div>
+    </div>
+    {% endif %}
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // --- CHAT LOGIC ---
+        function toggleChat() {
+            const box = document.getElementById('chatBox');
+            box.style.display = (box.style.display === 'flex') ? 'none' : 'flex';
+            if(box.style.display === 'flex') loadMessages();
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const msg = input.value;
+            if(!msg) return;
+
+            const formData = new FormData();
+            formData.append('message', msg);
+            
+            fetch('/api/chat/send', { method: 'POST', body: formData })
+            .then(res => res.json())
+            .then(data => {
+                input.value = '';
+                loadMessages();
+            });
+        }
+
+        function loadMessages() {
+            fetch('/api/chat/get')
+            .then(res => res.json())
+            .then(data => {
+                const content = document.getElementById('chatContent');
+                content.innerHTML = '';
+                data.forEach(msg => {
+                    const div = document.createElement('div');
+                    div.className = 'msg ' + (msg.sender === 'USER' ? 'msg-user' : 'msg-admin');
+                    div.textContent = msg.message;
+                    content.appendChild(div);
+                });
+                content.scrollTop = content.scrollHeight;
+            });
+        }
+
+        setInterval(() => {
+            if(document.getElementById('chatBox').style.display === 'flex') loadMessages();
+        }, 3000);
+
+        // --- NOTIFICATION LOGIC ---
+        document.getElementById('notifDropdown').addEventListener('click', function() {
+            fetch('/api/notifications')
+            .then(res => res.json())
+            .then(data => {
+                const list = document.getElementById('notifList');
+                list.innerHTML = '<li><h6 class="dropdown-header">Recent Activity</h6></li><li><hr class="dropdown-divider"></li>';
+                
+                if(data.length === 0) {
+                    list.innerHTML += '<li class="p-2 text-center text-muted">No recent activity</li>';
+                } else {
+                    data.forEach(n => {
+                        list.innerHTML += `
+                            <li class="dropdown-item" style="white-space: normal;">
+                                <small class="fw-bold d-block text-primary">${n.timestamp}</small>
+                                ${n.message}
+                            </li>`;
+                    });
+                }
+            });
+        });
+    </script>
 </body>
 </html>
-
