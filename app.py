@@ -617,67 +617,93 @@ def support():
     conn.close()
     return render_template('support.html', tickets=tickets)
 #new
+# --- Helper to ensure DB has status column ---
+def check_and_update_db_schema():
+    conn = get_db()
+    try:
+        # Check if column exists
+        conn.execute("SELECT status FROM users LIMIT 1")
+    except sqlite3.OperationalError:
+        print("Adding 'status' column to users table...")
+        conn.execute("ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'PENDING'")
+        conn.commit()
+    conn.close()
+#new
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
     # 1. Security Check
     if not session.get('is_admin'): 
         return redirect(url_for('login'))
     
-    # Ensure DB schema is up to date (adds status column if missing)
+    # 2. Ensure DB has 'status' column
     check_and_update_db_schema()
     
     conn = get_db()
+    
+    # 3. Handle Actions (Approve, Suspend, Unsuspend)
+    if 'action' in request.args and 'target_id' in request.args:
+        action = request.args.get('action')
+        target = request.args.get('target_id')
+        
+        new_status = 'ACTIVE'
+        msg = ""
+        
+        if action == 'suspend':
+            new_status = 'SUSPENDED'
+            msg = f"User {target} has been SUSPENDED."
+        elif action == 'unsuspend':
+            new_status = 'ACTIVE'
+            msg = f"User {target} has been REACTIVATED."
+        elif action == 'approve':
+            new_status = 'ACTIVE'
+            msg = f"User {target} has been APPROVED and is now Active."
+            
+        conn.execute("UPDATE users SET status=? WHERE account_id=?", (new_status, target))
+        conn.commit()
+        flash(msg, "success")
+        return redirect(url_for('admin', search_query=target))
+
+    # 4. Handle Search & Display
+    # We check both POST (form submit) and GET (url redirect) for a query
+    query = request.form.get('search_query') or request.args.get('search_query')
+    
     searched_user = None
     user_cards = []
     user_txs = []
     user_bals = []
-    suspicious_activity = []
-    
-    # 2. Handle Suspension / Activation
-    if 'action' in request.args and 'target_id' in request.args:
-        action = request.args.get('action')
-        target = request.args.get('target_id')
-        new_status = 'SUSPENDED' if action == 'suspend' else 'ACTIVE'
-        conn.execute("UPDATE users SET status=? WHERE account_id=?", (new_status, target))
-        conn.commit()
-        flash(f"User {target} is now {new_status}", "success")
-        return redirect(url_for('admin', search_query=target))
-
-    # 3. Handle Search
-    # Check if we have a search query from POST (form) or GET (url redirect)
-    query = request.form.get('search_query') or request.args.get('search_query')
+    suspicious = []
     
     if query:
-        # A. Find User
+        # Search by Account ID, National ID, or Email
         searched_user = conn.execute("SELECT * FROM users WHERE account_id=? OR id_card=? OR email=?", (query, query, query)).fetchone()
         
         if searched_user:
             uid = searched_user['account_id']
             
-            # B. Get Financials
+            # Fetch Balances
             user_bals = conn.execute("SELECT * FROM balances WHERE account_id=?", (uid,)).fetchall()
             
-            # C. Get Cards (We will mask them in the template)
+            # Fetch Cards (Card numbers are masked in the HTML template, not here)
             user_cards = conn.execute("SELECT * FROM cards WHERE account_id=?", (uid,)).fetchall()
             
-            # D. Get Transactions (Last 50)
+            # Fetch Recent Transactions
             user_txs = conn.execute("SELECT * FROM transactions WHERE account_id=? ORDER BY id DESC LIMIT 50", (uid,)).fetchall()
             
-            # E. Detect "Suspicious" Activity
-            # Logic: Any transaction > 5000 OR any transaction labeled 'FEE' (high frequency check)
-            suspicious_activity = conn.execute("""
+            # Fetch Suspicious Activity (High amounts or Fee events)
+            suspicious = conn.execute("""
                 SELECT * FROM transactions 
-                WHERE account_id=? AND (abs(amount) > 5000 OR type='FEE')
+                WHERE account_id=? AND (abs(amount) > 5000 OR type='FEE') 
                 ORDER BY id DESC
             """, (uid,)).fetchall()
 
     conn.close()
+    
     return render_template('admin.html', 
                            user=searched_user, 
                            cards=user_cards, 
                            txs=user_txs, 
-                           balances=user_bals,
-                           suspicious=suspicious_activity,
+                           balances=user_bals, 
+                           suspicious=suspicious, 
                            search_query=query)
 
 @app.route('/logout')
@@ -688,6 +714,7 @@ def logout():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, port=5000)
+
 
 
 
