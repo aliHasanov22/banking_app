@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATM Ultimate Web</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #f8f9fa; }
+        .sidebar { min-height: 100vh; background: #2c3e50; color: white; }
+        .sidebar a { color: #bdc3c7; text-decoration: none; padding: 15px; display: block; }
+        .sidebar a:hover, .sidebar a.active { background: #34495e; color: white; border-left: 4px solid #3498db; }
+        .card-visa { background: linear-gradient(135deg, #1a237e, #283593); color: white; }
+        .card-master { background: linear-gradient(135deg, #b71c1c, #d32f2f); color: white; }
+        .content { padding: 30px; }
+    </style>
+</head>
+<body>
+    <div class="d-flex">
+        {% if session.user_id and not session.is_admin %}
+        <div class="sidebar p-3" style="width: 250px;">
+            <h4 class="text-center mb-4">ATM V6</h4>
+            <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint == 'dashboard' else '' }}"><i class="fas fa-wallet me-2"></i> Wallets</a>
+            <a href="{{ url_for('transfer') }}" class="{{ 'active' if request.endpoint == 'transfer' else '' }}"><i class="fas fa-exchange-alt me-2"></i> Transfer</a>
+            <a href="{{ url_for('cards') }}" class="{{ 'active' if 'cards' in request.endpoint or 'order' in request.endpoint else '' }}"><i class="fas fa-credit-card me-2"></i> Cards (Settings)</a>
+            <a href="{{ url_for('order_card') }}" class="{{ 'active' if request.endpoint == 'order_card' else '' }}"><i class="fas fa-plus-circle me-2"></i> Order Card</a>
+            <a href="{{ url_for('bonuses') }}" class="{{ 'active' if request.endpoint == 'bonuses' else '' }}"><i class="fas fa-gift me-2"></i> Bonuses</a>
+            <a href="{{ url_for('history') }}" class="{{ 'active' if request.endpoint == 'history' else '' }}"><i class="fas fa-history me-2"></i> History</a>
+            <a href="{{ url_for('support') }}" class="{{ 'active' if request.endpoint == 'support' else '' }}"><i class="fas fa-headset me-2"></i> Support</a>
+            <a href="{{ url_for('logout') }}" class="text-danger mt-4"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
+        </div>
+        {% endif %}
+
+        <div class="flex-grow-1 content">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
