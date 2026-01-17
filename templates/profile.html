@@ -1,67 +1,69 @@
 {% extends "base.html" %}
+
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card shadow border-0">
-            <div class="card-header bg-gradient-dark text-white text-center py-5" 
-                 style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);">
-                
-                <div class="position-relative d-inline-block">
-                    <img src="{{ url_for('static', filename='uploads/' + (user['profile_pic'] if user['profile_pic'] else 'default.png')) }}" 
-                         class="rounded-circle border border-4 border-white shadow" 
-                         width="140" height="140" style="object-fit: cover;">
-                    
-                    <button class="btn btn-sm btn-light position-absolute bottom-0 end-0 rounded-circle shadow" 
-                            data-bs-toggle="modal" data-bs-target="#uploadModal">
-                        <i class="fas fa-camera"></i>
-                    </button>
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-lg border-0 overflow-hidden">
+                <div class="card-header bg-primary text-white text-center py-4 position-relative">
+                    <h3 class="fw-bold m-0">My Profile</h3>
+                    <div class="position-absolute top-0 end-0 m-3">
+                        {% if user.status == 'ACTIVE' %}
+                            <span class="badge bg-success border border-white"><i class="fas fa-check-circle me-1"></i> VERIFIED ACTIVE</span>
+                        {% elif user.status == 'SUSPENDED' %}
+                            <span class="badge bg-danger border border-white"><i class="fas fa-ban me-1"></i> SUSPENDED</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark border border-white"><i class="fas fa-hourglass-half me-1"></i> PENDING VERIFICATION</span>
+                        {% endif %}
+                    </div>
                 </div>
-                <h3 class="mt-3">{{ user['name'] }}</h3>
-                <p class="opacity-75">User ID: {{ user['account_id'] }}</p>
-            </div>
-
-            <div class="card-body p-4">
-                <form method="POST">
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="text-muted small">National ID</label>
-                            <input type="text" class="form-control fw-bold" value="{{ user['id_card'] }}" disabled>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="text-muted small">Account Status</label>
-                            <input type="text" class="form-control text-success fw-bold" value="Verified Active" disabled>
-                        </div>
+                
+                <div class="card-body p-5 text-center">
+                    <div class="position-relative d-inline-block mb-4">
+                        <img src="{{ url_for('static', filename='uploads/' + user.profile_pic) }}" 
+                             class="rounded-circle border border-5 border-white shadow" 
+                             style="width: 150px; height: 150px; object-fit: cover;"
+                             onerror="this.src='https://via.placeholder.com/150'">
+                        
+                        <label for="fileUpload" class="position-absolute bottom-0 end-0 bg-dark text-white rounded-circle p-2 shadow" style="cursor: pointer; width: 40px; height: 40px;">
+                            <i class="fas fa-camera"></i>
+                        </label>
                     </div>
 
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="text-muted small">Email Address</label>
-                            <input type="email" name="email" class="form-control" value="{{ user['email'] }}">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="text-muted small">Phone Number</label>
-                            <input type="text" name="phone" class="form-control" value="{{ user['phone'] }}">
-                        </div>
-                    </div>
+                    <h2 class="fw-bold">{{ user.name }}</h2>
+                    <p class="text-muted mb-4">Account ID: <span class="fw-bold text-primary">{{ user.account_id }}</span></p>
 
-                    <div class="d-grid mt-4">
-                        <button class="btn btn-primary">Save Changes</button>
+                    {% if user.status != 'ACTIVE' %}
+                    <div class="alert alert-warning mb-4 text-start">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Account Restricted:</strong> Your account is currently pending approval. You cannot order cards or perform transactions until an Admin verifies your details.
                     </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
+                    {% endif %}
 
-<div class="modal fade" id="uploadModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header"><h5>Update Profile Picture</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-            <div class="modal-body">
-                <form method="POST" enctype="multipart/form-data">
-                    <input type="file" name="profile_pic" class="form-control mb-3" required>
-                    <button class="btn btn-success w-100">Upload New Photo</button>
-                </form>
+                    <form method="POST" enctype="multipart/form-data" class="text-start">
+                        <input type="file" name="profile_pic" id="fileUpload" class="d-none" onchange="this.form.submit()">
+                        
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary fw-bold small">EMAIL ADDRESS</label>
+                                <input type="email" name="email" class="form-control" value="{{ user.email }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary fw-bold small">PHONE NUMBER</label>
+                                <input type="text" name="phone" class="form-control" value="{{ user.phone }}">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label text-secondary fw-bold small">NATIONAL ID CARD</label>
+                                <input type="text" class="form-control bg-light" value="{{ user.id_card }}" readonly>
+                                <small class="text-muted">ID Card cannot be changed. Contact support.</small>
+                            </div>
+                        </div>
+
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-primary fw-bold">Update Contact Info</button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
