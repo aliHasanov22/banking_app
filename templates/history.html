@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Transaction History</h2>
+<div class="card mt-3">
+    <div class="card-body p-0">
+        <table class="table table-striped mb-0">
+            <thead><tr><th>Time</th><th>Type</th><th>Amount</th><th>Details</th></tr></thead>
+            <tbody>
+                {% for t in txs %}
+                <tr>
+                    <td>{{ t['timestamp'] }}</td>
+                    <td><span class="badge bg-{{ 'success' if t['amount'] > 0 else 'danger' }}">{{ t['type'] }}</span></td>
+                    <td>{{ "%.2f"|format(t['amount']) }} {{ t['currency'] }}</td>
+                    <td>{{ t['note'] }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="text-center p-3">No transactions found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
