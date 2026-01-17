@@ -15,8 +15,9 @@ ADMIN_PIN = "admin"
 
 # --- Database Setup (Identical to script3.py) ---
 def get_db():
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row  # Allows accessing columns by name
+    # Add timeout=10 (waits 10 seconds before erroring)
+    conn = sqlite3.connect(DB_NAME, timeout=10) 
+    conn.row_factory = sqlite3.Row
     return conn
 
 def init_db():
@@ -464,5 +465,6 @@ def logout():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, port=5000)
+
 
 
