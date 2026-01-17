@@ -2,163 +2,182 @@
 
 {% block content %}
 <div class="container py-4">
-    <h2 class="mb-4 fw-bold"><i class="fas fa-exchange-alt text-primary me-2"></i>Money Transfer</h2>
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="fw-bold"><i class="fas fa-paper-plane text-primary me-2"></i>Send Money</h2>
+            <p class="text-muted">Transfers over 5000 incur a small fee on the excess amount.</p>
+        </div>
+    </div>
 
     <form method="POST" action="{{ url_for('transfer') }}" id="transferForm">
         <div class="row g-4">
-            <div class="col-lg-6">
-                <div class="card shadow-sm h-100 border-0">
-                    <div class="card-header bg-white py-3">
-                        <h5 class="mb-0 fw-bold text-secondary">From Account</h5>
-                    </div>
+            
+            <div class="col-lg-5">
+                <div class="card shadow-sm border-0 h-100">
                     <div class="card-body p-4">
-                        <label class="form-label fw-bold">Select Card to Pay From</label>
-                        <select name="sender_card" id="senderCardSelect" class="form-select form-select-lg mb-3" required onchange="updateTransferUI()">
+                        <label class="form-label fw-bold text-secondary small">PAY FROM</label>
+                        <select name="sender_card" id="senderCardSelect" class="form-select form-select-lg mb-3" onchange="updateUI()">
                             {% for card in cards %}
                             <option value="{{ card.card_number }}" 
                                     data-balance="{{ card.balance }}" 
                                     data-limit="{{ card.expense_limit }}"
                                     data-currency="{{ card.currency }}">
-                                {{ card.card_type }} ****{{ card.card_number[-4:] }} | Bal: {{ card.balance }} {{ card.currency }}
+                                {{ card.card_type }} ****{{ card.card_number[-4:] }}
                             </option>
                             {% endfor %}
                         </select>
 
-                        <div class="alert alert-info border-0 bg-light d-flex justify-content-between align-items-center">
-                            <span>Spending Limit:</span>
-                            <span class="fw-bold" id="limitDisplay">Select a card</span>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Available Balance:</span>
+                            <span class="fw-bold text-dark" id="balDisplay">0.00</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-3">
+                            <span class="text-muted">Card Limit:</span>
+                            <span class="fw-bold text-dark" id="limitTotalDisplay">0.00</span>
                         </div>
 
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Confirm PIN</label>
+                        <hr>
+
+                        <label class="form-label fw-bold text-secondary small mt-2">LIMIT REMAINING</label>
+                        <div class="progress" style="height: 10px;">
+                            <div id="limitBar" class="progress-bar bg-success" role="progressbar" style="width: 100%"></div>
+                        </div>
+                        <div class="text-end mt-1">
+                            <small id="limitRemainingText" class="fw-bold text-success">Select a card</small>
+                        </div>
+
+                        <div class="mt-4">
+                            <label class="form-label fw-bold">Enter PIN</label>
                             <input type="password" name="pin" class="form-control form-control-lg" placeholder="****" maxlength="4" required>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="col-lg-6">
-                 <div class="card shadow-sm h-100 border-0">
-                     <div class="card-header bg-white py-3">
-                        <h5 class="mb-0 fw-bold text-secondary">To Recipient</h5>
-                    </div>
+            <div class="col-lg-7">
+                <div class="card shadow-sm border-0 h-100">
                     <div class="card-body p-4">
-                         <div class="mb-4">
-                            <label class="form-label fw-bold">Receiver Card Number</label>
-                            <input type="text" name="receiver_card" class="form-control form-control-lg" placeholder="XXXX XXXX XXXX XXXX" required>
+                        <label class="form-label fw-bold text-secondary small">RECIPIENT CARD</label>
+                        <input type="text" name="receiver_card" class="form-control form-control-lg mb-4" placeholder="0000 0000 0000 0000" required>
+
+                        <label class="form-label fw-bold text-secondary small">AMOUNT</label>
+                        <div class="input-group input-group-lg mb-2">
+                            <input type="number" id="amountInput" name="amount" class="form-control fw-bold" placeholder="0.00" step="0.01" onkeyup="updateUI()" onchange="updateUI()" required>
+                            <span class="input-group-text fw-bold" id="currencyLabel">AZN</span>
                         </div>
 
-                         <div class="mb-4">
-                            <label class="form-label fw-bold">Amount to Send</label>
-                            <div class="input-group input-group-lg">
-                                <input type="number" id="amountInput" name="amount" class="form-control fw-bold" placeholder="0.00" step="0.01" min="1" required onkeyup="updateTransferUI()" onchange="updateTransferUI()">
-                                <span class="input-group-text fw-bold" id="currencyLabel">---</span>
+                        <div id="limitAlert" class="alert alert-danger d-none mt-3">
+                            <i class="fas fa-hand-paper me-2"></i> Amount exceeds card limit!
+                        </div>
+
+                        <div id="feeAlert" class="alert alert-warning d-none mt-3">
+                            <div class="d-flex justify-content-between">
+                                <span><i class="fas fa-info-circle me-2"></i> Fee (Excess > 5000):</span>
+                                <span class="fw-bold" id="feeDisplay">0.00</span>
                             </div>
-                            <small class="text-muted">Amounts over 5000 incur a 2% fee (min 1.00).</small>
                         </div>
 
-                        <div id="feeAlert" class="alert alert-warning d-none">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            <span id="feeText"></span>
-                        </div>
-                        
-                         <div id="limitAlert" class="alert alert-danger d-none">
-                            <i class="fas fa-times-circle me-2"></i>
-                            Exceeds your card's spending limit!
+                        <div class="bg-light rounded p-3 mt-4">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Send Amount:</span>
+                                <span class="fw-bold" id="summaryAmount">0.00</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Fee:</span>
+                                <span class="fw-bold text-danger" id="summaryFee">0.00</span>
+                            </div>
+                            <hr>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-bold h5 mb-0">Total Deduction:</span>
+                                <span class="fw-bold h4 text-primary mb-0" id="summaryTotal">0.00</span>
+                            </div>
                         </div>
 
-                        <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-light rounded">
-                            <h5 class="mb-0">Total to Pay:</h5>
-                            <h3 class="mb-0 fw-bold text-primary" id="totalPayDisplay">0.00</h3>
-                        </div>
-
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary btn-lg py-3 fw-bold" id="submitBtn">
-                                Send Money Now <i class="fas fa-paper-plane ms-2"></i>
-                            </button>
-                        </div>
+                        <button type="submit" id="submitBtn" class="btn btn-primary btn-lg w-100 mt-4 fw-bold">Confirm Transfer</button>
                     </div>
-                 </div>
+                </div>
             </div>
         </div>
     </form>
 </div>
 
 <script>
-    // Initialize UI on load
-    document.addEventListener("DOMContentLoaded", function() {
-        updateTransferUI();
-    });
+    document.addEventListener("DOMContentLoaded", function() { updateUI(); });
 
-    function updateTransferUI() {
+    function updateUI() {
+        // Elements
         const select = document.getElementById('senderCardSelect');
         const amountInput = document.getElementById('amountInput');
-        const feeAlert = document.getElementById('feeAlert');
-        const limitAlert = document.getElementById('limitAlert');
-        const submitBtn = document.getElementById('submitBtn');
-
-        // 1. Get Selected Card Data
+        
+        // Data
         const selectedOption = select.options[select.selectedIndex];
-        const limit = parseFloat(selectedOption.getAttribute('data-limit')) || 0;
-        const balance = parseFloat(selectedOption.getAttribute('data-balance')) || 0;
-        const currency = selectedOption.getAttribute('data-currency') || '---';
+        const cardLimit = parseFloat(selectedOption.getAttribute('data-limit')) || 5000;
+        const cardBal = parseFloat(selectedOption.getAttribute('data-balance')) || 0;
+        const curr = selectedOption.getAttribute('data-currency') || 'AZN';
         
-        // 2. Update Basic UI Labels
-        document.getElementById('limitDisplay').innerText = `${limit.toFixed(2)} ${currency}`;
-        document.getElementById('currencyLabel').innerText = currency;
-        
-        // 3. Get and Validate Amount
+        // User Input
         let amount = parseFloat(amountInput.value);
-        if (isNaN(amount) || amount < 0) amount = 0;
+        if(isNaN(amount) || amount < 0) amount = 0;
 
-        // 4. Calculate Fee Logic
+        // --- 1. CALCULATE FEE (Excess Logic) ---
         let fee = 0;
         if (amount > 5000) {
-            fee = amount * 0.02;
-            if (fee < 1.0) fee = 1.0; // Minimum fee
+            let excess = amount - 5000;
+            // 2% of excess, minimum 1.0
+            fee = Math.max(excess * 0.02, 1.0);
             
-            document.getElementById('feeText').innerText = `High amount fee (2%): +${fee.toFixed(2)} ${currency}`;
-            feeAlert.classList.remove('d-none');
+            document.getElementById('feeDisplay').innerText = `+${fee.toFixed(2)} ${curr}`;
+            document.getElementById('feeAlert').classList.remove('d-none');
         } else {
-            feeAlert.classList.add('d-none');
+            document.getElementById('feeAlert').classList.add('d-none');
         }
 
-        const total = amount + fee;
-        document.getElementById('totalPayDisplay').innerText = `${total.toFixed(2)} ${currency}`;
+        let total = amount + fee;
 
-        // 5. Check Limits and Enable/Disable Submit
-        let isValid = true;
-
-        // Check against Spending Limit
-        if (amount > limit) {
-            limitAlert.innerText = `Exceeds spending limit by ${(amount - limit).toFixed(2)} ${currency}!`;
-            limitAlert.classList.remove('d-none');
-            isValid = false;
-        } else {
-             // Show remaining limit feedback if typing
-             if(amount > 0) {
-                 limitAlert.innerText = `You will have ${(limit - amount).toFixed(2)} ${currency} remaining limit.`;
-                 limitAlert.classList.remove('alert-danger');
-                 limitAlert.classList.add('alert-success');
-                 limitAlert.classList.remove('d-none');
-             } else {
-                 limitAlert.classList.add('d-none');
-                 limitAlert.classList.remove('alert-success');
-                 limitAlert.classList.add('alert-danger');
-             }
-        }
-
-        // Check against Actual Balance
-        if (total > balance) {
-             // We can reuse the limit alert box for balance check too
-             limitAlert.innerText = `Insufficient funds. You need ${total.toFixed(2)} ${currency}.`;
-             limitAlert.classList.remove('alert-success');
-             limitAlert.classList.add('alert-danger');
-             limitAlert.classList.remove('d-none');
-             isValid = false;
-        }
+        // --- 2. UPDATE LABELS ---
+        document.getElementById('balDisplay').innerText = `${cardBal.toFixed(2)} ${curr}`;
+        document.getElementById('limitTotalDisplay').innerText = `${cardLimit.toFixed(2)} ${curr}`;
+        document.getElementById('currencyLabel').innerText = curr;
         
-        submitBtn.disabled = !isValid || amount <= 0;
+        document.getElementById('summaryAmount').innerText = amount.toFixed(2);
+        document.getElementById('summaryFee').innerText = fee.toFixed(2);
+        document.getElementById('summaryTotal').innerText = `${total.toFixed(2)} ${curr}`;
+
+        // --- 3. LIMIT CHECK VISUALS ---
+        const limitAlert = document.getElementById('limitAlert');
+        const limitBar = document.getElementById('limitBar');
+        const limitText = document.getElementById('limitRemainingText');
+        const submitBtn = document.getElementById('submitBtn');
+        
+        let remaining = cardLimit - amount;
+        let percentUsed = (amount / cardLimit) * 100;
+        if (percentUsed > 100) percentUsed = 100;
+        
+        limitBar.style.width = (100 - percentUsed) + "%"; // Show remaining bar
+
+        if (amount > cardLimit) {
+            // Over Limit
+            limitAlert.classList.remove('d-none');
+            limitText.innerText = `Exceeds limit by ${Math.abs(remaining).toFixed(2)} ${curr}`;
+            limitText.className = "fw-bold text-danger";
+            limitBar.className = "progress-bar bg-danger";
+            submitBtn.disabled = true;
+        } else {
+            // Within Limit
+            limitAlert.classList.add('d-none');
+            limitText.innerText = `${remaining.toFixed(2)} ${curr} Remaining Limit`;
+            limitText.className = "fw-bold text-success";
+            limitBar.className = "progress-bar bg-success";
+            
+            // Check Balance
+            if (total > cardBal) {
+                limitText.innerText = "Insufficient Wallet Balance";
+                limitText.className = "fw-bold text-danger";
+                submitBtn.disabled = true;
+            } else {
+                submitBtn.disabled = (amount <= 0);
+            }
+        }
     }
 </script>
 {% endblock %}
