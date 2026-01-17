@@ -531,13 +531,14 @@ def order_card():
     if request.method == 'POST':
         conn = get_db()
         
-        # Check if User is Verified
+        # 1. Security: Check if User is Verified
         user = conn.execute("SELECT status FROM users WHERE account_id=?", (uid,)).fetchone()
         if user['status'] != 'ACTIVE':
             flash("Account must be Verified by Admin to order cards.", "warning")
             conn.close()
             return redirect(url_for('cards'))
 
+        # 2. Check Card Limit
         count = conn.execute("SELECT COUNT(*) FROM cards WHERE account_id=?", (uid,)).fetchone()[0]
         if count >= 3:
             flash("Max 3 Cards allowed", "danger")
@@ -545,20 +546,29 @@ def order_card():
             currency = request.form['currency']
             ctype = request.form['card_type']
             
-            # --- NEW CARD NUMBER GENERATION LOGIC ---
-            # Format: [Prefix 1] + [Random 11] + [Account ID 4] = 16 Digits
-            prefix = "4" if ctype == "VISA" else "5"
+            # --- CARD NUMBER GENERATION ---
             
-            # We need 11 random digits to fill the gap
-            middle_part = ''.join([str(random.randint(0,9)) for _ in range(11)])
+            # Step 1: Prefix & Bank Code (7 Digits Total)
+            # User defined: Visa=4320022, Master=5554523
+            if ctype == "VISA":
+                prefix = "4"
+                bank_code = "320022"  # Combined with prefix = 4320022
+            else:
+                prefix = "5"
+                bank_code = "554523"  # Combined with prefix = 5554523
             
-            # Ensure Account ID is 4 digits (it starts at 1001, so it fits)
-            # If account ID grows larger than 4 digits, this logic handles it by shrinking the middle part
-            acc_part = str(uid)
+            # Step 2: Card Unique Code (8 Digits)
+            # Unique random generated code for this specific card
+            card_unique_code = ''.join([str(random.randint(0,9)) for _ in range(8)])
+            
+            # Step 3: Separator (1 Digit)
+            # Necessary to reach exactly 16 digits (1+6+1+8 = 16)
+            separator = "0"
             
             # Combine
-            c_num = prefix + middle_part + acc_part
-            # ----------------------------------------
+            c_num = prefix + bank_code + separator + card_unique_code
+            # Example Result: 4320022 0 12345678
+            # ------------------------------
 
             cvc = ''.join([str(random.randint(0,9)) for _ in range(3)])
             pin = ''.join([str(random.randint(0,9)) for _ in range(4)])
@@ -833,6 +843,7 @@ def logout():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, port=5000)
+
 
 
 
