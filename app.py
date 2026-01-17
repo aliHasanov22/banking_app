@@ -171,15 +171,26 @@ def dashboard():
     uid = session['user_id']
     conn = get_db()
     
-    # 1. Wallets
+    # 1. Get All Wallets (AZN, USD, EUR)
     balances = conn.execute("SELECT * FROM balances WHERE account_id=?", (uid,)).fetchall()
     
+    # Convert balances to a dictionary for easy lookup: {'USD': 500.0, 'AZN': 100.0}
+    bal_dict = {row['currency']: row['amount'] for row in balances}
+
+    # 2. Get Cards and attach their balance
+    db_cards = conn.execute("SELECT * FROM cards WHERE account_id=? AND status='ACTIVE'", (uid,)).fetchall()
+    cards_with_balance = []
+    for c in db_cards:
+        c_dict = dict(c) # Convert to dictionary to modify
+        # Find balance for this card's currency, default to 0.00 if wallet doesn't exist yet
+        c_dict['balance'] = bal_dict.get(c['currency'], 0.00) 
+        cards_with_balance.append(c_dict)
+
     # Quick Stats
     tx_count = conn.execute("SELECT COUNT(*) FROM transactions WHERE account_id=?", (uid,)).fetchone()[0]
-    card_count = conn.execute("SELECT COUNT(*) FROM cards WHERE account_id=?", (uid,)).fetchone()[0]
     
     conn.close()
-    return render_template('dashboard.html', balances=balances, tx_count=tx_count, card_count=card_count)
+    return render_template('dashboard.html', balances=balances, cards=cards_with_balance, tx_count=tx_count)
 
 # 4. Transfer
 @app.route('/transfer', methods=['GET', 'POST'])
@@ -326,11 +337,23 @@ def topup():
 @app.route('/cards')
 def cards():
     if 'user_id' not in session: return redirect(url_for('login'))
+    uid = session['user_id']
     conn = get_db()
-    my_cards = conn.execute("SELECT * FROM cards WHERE account_id=?", (session['user_id'],)).fetchall()
-    conn.close()
-    return render_template('cards.html', cards=my_cards)
+    
+    # Get Balances
+    balances = conn.execute("SELECT * FROM balances WHERE account_id=?", (uid,)).fetchall()
+    bal_dict = {row['currency']: row['amount'] for row in balances}
 
+    # Get Cards
+    db_cards = conn.execute("SELECT * FROM cards WHERE account_id=?", (uid,)).fetchall()
+    cards_with_balance = []
+    for c in db_cards:
+        c_dict = dict(c)
+        c_dict['balance'] = bal_dict.get(c['currency'], 0.00)
+        cards_with_balance.append(c_dict)
+
+    conn.close()
+    return render_template('cards.html', cards=cards_with_balance)
 @app.route('/card_settings/<card_num>', methods=['GET', 'POST'])
 def card_settings(card_num):
     if 'user_id' not in session: return redirect(url_for('login'))
@@ -497,6 +520,7 @@ def logout():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, port=5000)
+
 
 
 
