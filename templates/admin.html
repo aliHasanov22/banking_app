@@ -22,6 +22,7 @@
         }
         .bg-active { background-color: rgba(46, 204, 113, 0.2); color: #2ecc71; }
         .bg-suspended { background-color: rgba(231, 76, 60, 0.2); color: #e74c3c; }
+        .bg-pending { background-color: rgba(255, 193, 7, 0.2); color: #ffc107; }
     </style>
 </head>
 <body class="p-4">
@@ -51,10 +52,16 @@
             <div class="card h-100 shadow-lg">
                 <div class="card-header border-bottom border-secondary d-flex justify-content-between align-items-center">
                     <h5 class="mb-0 fw-bold">User Profile</h5>
-                    <span class="status-badge {{ 'bg-suspended' if user.status == 'SUSPENDED' else 'bg-active' }}">
-                        {{ user.status or 'ACTIVE' }}
-                    </span>
+                    
+                    {% if user.status == 'ACTIVE' %}
+                        <span class="status-badge bg-active">ACTIVE</span>
+                    {% elif user.status == 'SUSPENDED' %}
+                        <span class="status-badge bg-suspended">SUSPENDED</span>
+                    {% else %}
+                        <span class="status-badge bg-pending">PENDING</span>
+                    {% endif %}
                 </div>
+
                 <div class="card-body">
                     <div class="text-center mb-4">
                         <div class="rounded-circle bg-dark d-inline-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
@@ -82,7 +89,11 @@
                     <hr class="border-secondary">
                     
                     <div class="d-grid gap-2">
-                        {% if user.status == 'SUSPENDED' %}
+                        {% if user.status == 'PENDING' %}
+                            <a href="{{ url_for('admin', search_query=user.account_id, action='approve', target_id=user.account_id) }}" class="btn btn-warning fw-bold text-dark">
+                                <i class="fas fa-check-double me-2"></i>APPROVE USER
+                            </a>
+                        {% elif user.status == 'SUSPENDED' %}
                             <a href="{{ url_for('admin', search_query=user.account_id, action='unsuspend', target_id=user.account_id) }}" class="btn btn-success fw-bold">
                                 <i class="fas fa-unlock me-2"></i>REACTIVATE ACCOUNT
                             </a>
@@ -92,7 +103,7 @@
                             </a>
                         {% endif %}
                     </div>
-                </div>
+                    </div>
             </div>
         </div>
 
