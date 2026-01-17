@@ -78,6 +78,19 @@ def init_db():
     conn.commit()
     conn.close()
 
+def check_and_update_db_schema():
+    """Helper to ensure users have a status column for suspension"""
+    conn = get_db()
+    try:
+        # Try to select the column to see if it exists
+        conn.execute("SELECT status FROM users LIMIT 1")
+    except sqlite3.OperationalError:
+        # If error, column missing -> Add it
+        print("Migrating DB: Adding 'status' column to users table...")
+        conn.execute("ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'ACTIVE'")
+        conn.commit()
+    conn.close()
+    
 # --- HELPERS ---
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -563,25 +576,69 @@ def support():
     tickets = conn.execute("SELECT * FROM tickets WHERE account_id=?", (uid,)).fetchall()
     conn.close()
     return render_template('support.html', tickets=tickets)
-
+#new
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
-    if not session.get('is_admin'): return redirect(url_for('login'))
-    conn = get_db()
+    # 1. Security Check
+    if not session.get('is_admin'): 
+        return redirect(url_for('login'))
     
-    if request.method == 'POST':
-        if 'approve_card' in request.form:
-            conn.execute("UPDATE cards SET status='ACTIVE' WHERE card_number=?", (request.form['card_num'],))
-            flash("Card Approved", "success")
-        elif 'resolve_ticket' in request.form:
-            conn.execute("UPDATE tickets SET status='RESOLVED' WHERE id=?", (request.form['ticket_id'],))
-            flash("Ticket Resolved", "success")
+    # Ensure DB schema is up to date (adds status column if missing)
+    check_and_update_db_schema()
+    
+    conn = get_db()
+    searched_user = None
+    user_cards = []
+    user_txs = []
+    user_bals = []
+    suspicious_activity = []
+    
+    # 2. Handle Suspension / Activation
+    if 'action' in request.args and 'target_id' in request.args:
+        action = request.args.get('action')
+        target = request.args.get('target_id')
+        new_status = 'SUSPENDED' if action == 'suspend' else 'ACTIVE'
+        conn.execute("UPDATE users SET status=? WHERE account_id=?", (new_status, target))
         conn.commit()
+        flash(f"User {target} is now {new_status}", "success")
+        return redirect(url_for('admin', search_query=target))
 
-    pending_cards = conn.execute("SELECT * FROM cards WHERE status='PENDING'").fetchall()
-    tickets = conn.execute("SELECT * FROM tickets WHERE status='OPEN'").fetchall()
+    # 3. Handle Search
+    # Check if we have a search query from POST (form) or GET (url redirect)
+    query = request.form.get('search_query') or request.args.get('search_query')
+    
+    if query:
+        # A. Find User
+        searched_user = conn.execute("SELECT * FROM users WHERE account_id=? OR id_card=? OR email=?", (query, query, query)).fetchone()
+        
+        if searched_user:
+            uid = searched_user['account_id']
+            
+            # B. Get Financials
+            user_bals = conn.execute("SELECT * FROM balances WHERE account_id=?", (uid,)).fetchall()
+            
+            # C. Get Cards (We will mask them in the template)
+            user_cards = conn.execute("SELECT * FROM cards WHERE account_id=?", (uid,)).fetchall()
+            
+            # D. Get Transactions (Last 50)
+            user_txs = conn.execute("SELECT * FROM transactions WHERE account_id=? ORDER BY id DESC LIMIT 50", (uid,)).fetchall()
+            
+            # E. Detect "Suspicious" Activity
+            # Logic: Any transaction > 5000 OR any transaction labeled 'FEE' (high frequency check)
+            suspicious_activity = conn.execute("""
+                SELECT * FROM transactions 
+                WHERE account_id=? AND (abs(amount) > 5000 OR type='FEE')
+                ORDER BY id DESC
+            """, (uid,)).fetchall()
+
     conn.close()
-    return render_template('admin.html', cards=pending_cards, tickets=tickets)
+    return render_template('admin.html', 
+                           user=searched_user, 
+                           cards=user_cards, 
+                           txs=user_txs, 
+                           balances=user_bals,
+                           suspicious=suspicious_activity,
+                           search_query=query)
 
 @app.route('/logout')
 def logout():
@@ -591,6 +648,7 @@ def logout():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, port=5000)
+
 
 
 
