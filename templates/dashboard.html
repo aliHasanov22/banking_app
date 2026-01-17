@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<h2><i class="fas fa-wallet"></i> My Wallets</h2>
+<p class="text-muted">Overview of your account balances.</p>
+
+<div class="row mt-4">
+    {% for bal in balances %}
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-body">
+                <h5 class="text-secondary">{{ bal['currency'] }}</h5>
+                <h2 class="fw-bold">{{ "%.2f"|format(bal['amount']) }}</h2>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12"><p>No wallets active.</p></div>
+    {% endfor %}
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card p-3">
+            <h5>Quick Stats</h5>
+            <ul>
+                <li>Active Cards: <strong>{{ card_count }}</strong></li>
+                <li>Total Transactions: <strong>{{ tx_count }}</strong></li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
