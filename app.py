@@ -77,6 +77,22 @@ def init_db():
         status TEXT DEFAULT 'OPEN', timestamp TEXT,
         FOREIGN KEY(account_id) REFERENCES users(account_id)
     )''')
+
+    # NEW: Term Deposits Table
+    cursor.execute('''CREATE TABLE IF NOT EXISTS term_deposits (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        account_id TEXT,
+        amount REAL,
+        currency TEXT,
+        term_months INTEGER,
+        interest_rate REAL,
+        is_monthly_payout INTEGER,
+        start_date TEXT,
+        end_date TEXT,
+        payout_card_number TEXT,
+        status TEXT DEFAULT 'ACTIVE', -- ACTIVE, COMPLETED, CLOSED
+        projected_profit REAL
+    )''')
     
     conn.commit()
     conn.close()
@@ -216,25 +232,21 @@ def register():
             conn.close()
     return render_template('register.html')
 
+# --- 3. UPDATE DASHBOARD ROUTE (Fetch Deposits) ---
 @app.route('/dashboard')
 def dashboard():
-    # 1. Check if user is logged in
-    if 'user_id' not in session: 
-        return redirect(url_for('login'))
-    
-    # 2. SECURITY FIX: If Admin tries to access Dashboard, force them to Admin Panel
-    if session.get('is_admin'):
-        return redirect(url_for('admin'))
+    if 'user_id' not in session: return redirect(url_for('login'))
+    # Security check for admin...
+    if session.get('is_admin'): return redirect(url_for('admin'))
 
-    # 3. Standard User Dashboard Logic
     uid = session['user_id']
     conn = get_db()
     
-    # Balances
+    # 1. Get Balances (Needed for cards logic)
     balances = conn.execute("SELECT * FROM balances WHERE account_id=?", (uid,)).fetchall()
     bal_dict = {row['currency']: row['amount'] for row in balances}
     
-    # Cards with Balance attached
+    # 2. Get Cards
     db_cards = conn.execute("SELECT * FROM cards WHERE account_id=? AND status='ACTIVE'", (uid,)).fetchall()
     cards_with_balance = []
     for c in db_cards:
@@ -242,11 +254,19 @@ def dashboard():
         c_dict['balance'] = bal_dict.get(c['currency'], 0.00)
         cards_with_balance.append(c_dict)
     
+    # 3. NEW: Get Active Deposits
+    my_deposits = conn.execute("SELECT * FROM term_deposits WHERE account_id=? AND status='ACTIVE'", (uid,)).fetchall()
+    
     # Stats
     tx_count = conn.execute("SELECT COUNT(*) FROM transactions WHERE account_id=?", (uid,)).fetchone()[0]
     conn.close()
     
-    return render_template('dashboard.html', balances=balances, cards=cards_with_balance, tx_count=tx_count)
+    # NOTE: We removed 'balances' from the render variable since user wanted to hide wallet section
+    # But we still pass cards_with_balance so they can see funds on cards.
+    return render_template('dashboard.html', 
+                           deposits=my_deposits, 
+                           cards=cards_with_balance, 
+                           tx_count=tx_count)
 
 # --- V7 FEATURES (Chat, Profile, Notifications) ---
 
@@ -709,6 +729,96 @@ def admin():
                            suspicious=suspicious, 
                            search_query=query)
 
+@app.route('/create_deposit', methods=['POST'])
+def create_deposit():
+    if 'user_id' not in session: return redirect(url_for('login'))
+    uid = session['user_id']
+    conn = get_db()
+    
+    try:
+        source_card_num = request.form['source_card']
+        payout_card_num = request.form['payout_card']
+        amount = float(request.form['amount'])
+        currency = request.form['currency']
+        months = int(request.form['term_months'])
+        payout_type = request.form['payout_type'] # 'end' or 'monthly'
+        
+        # 1. Validation: Min/Max
+        if amount < 200 or amount > 500000:
+            flash(f"Amount must be between 200 and 500,000 {currency}", "warning")
+            return redirect(url_for('dashboard'))
+
+        # 2. Get Source Card & Balance
+        card = conn.execute("SELECT * FROM cards WHERE card_number=? AND account_id=?", (source_card_num, uid)).fetchone()
+        if not card or card['currency'] != currency:
+            flash("Invalid Source Card or Currency Mismatch", "danger")
+            return redirect(url_for('dashboard'))
+            
+        bal_row = conn.execute("SELECT amount FROM balances WHERE account_id=? AND currency=?", (uid, currency)).fetchone()
+        balance = bal_row['amount'] if bal_row else 0.0
+        
+        if balance < amount:
+            flash("Insufficient funds in wallet for this deposit.", "danger")
+            return redirect(url_for('dashboard'))
+
+        # 3. Calculate Rate (Exact Logic from Prompt)
+        base_rate = 0.0
+        
+        if currency == 'AZN':
+            if months == 6: base_rate = 8.0
+            elif months == 9: base_rate = 9.0
+            elif months == 12: base_rate = 11.0
+            elif months == 18: base_rate = 10.0
+            elif months == 24: base_rate = 10.5
+        elif currency == 'USD':
+            if months == 12: base_rate = 3.0
+            elif months == 24: base_rate = 3.5
+        elif currency == 'EUR':
+            if months == 18: base_rate = 3.5
+
+        if base_rate == 0.0:
+            flash("Invalid Term selected for this currency.", "danger")
+            return redirect(url_for('dashboard'))
+
+        # Apply Monthly Penalty (-0.5%)
+        is_monthly = (payout_type == 'monthly')
+        final_rate = base_rate - 0.5 if is_monthly else base_rate
+        
+        # Calculate Projected Profit
+        # Formula: Amount * (Rate/100) * (Months/12)
+        profit = amount * (final_rate / 100) * (months / 12)
+
+        # 4. Execute Transaction
+        # Deduct Money
+        conn.execute("UPDATE balances SET amount=? WHERE account_id=? AND currency=?", (balance - amount, uid, currency))
+        
+        # Log Transaction
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        conn.execute("INSERT INTO transactions (account_id, timestamp, type, currency, amount, note) VALUES (?, ?, ?, ?, ?, ?)",
+                     (uid, ts, "INVEST", currency, -amount, f"Opened {months}-Month Deposit ({final_rate}%)"))
+        
+        # Create Deposit Record
+        # End Date Calculation
+        # For simplicity in this example, we just store the string. In real app, use datetime math.
+        start_date = datetime.now().strftime("%Y-%m-%d")
+        
+        conn.execute('''INSERT INTO term_deposits 
+            (account_id, amount, currency, term_months, interest_rate, is_monthly_payout, start_date, payout_card_number, projected_profit)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+            (uid, amount, currency, months, final_rate, 1 if is_monthly else 0, start_date, payout_card_num, profit))
+            
+        conn.commit()
+        flash(f"Success! Invested {amount} {currency} at {final_rate}%", "success")
+        
+    except Exception as e:
+        print(e)
+        flash("Error processing deposit.", "danger")
+        
+    finally:
+        conn.close()
+    
+    return redirect(url_for('dashboard'))
+
 @app.route('/generate_qr/<card_number>')
 def generate_qr(card_number):
     if 'user_id' not in session: return redirect(url_for('login'))
@@ -731,6 +841,7 @@ def logout():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, port=5000)
+
 
 
 
