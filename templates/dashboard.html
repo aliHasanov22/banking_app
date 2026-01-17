@@ -1,32 +1,94 @@
 {% extends "base.html" %}
 {% block content %}
-<h2><i class="fas fa-wallet"></i> My Wallets</h2>
-<p class="text-muted">Overview of your account balances.</p>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold text-dark">Welcome back, {{ session.name }}!</h2>
+        <p class="text-muted">Here is your financial overview.</p>
+    </div>
+    <a href="{{ url_for('topup') }}" class="btn btn-primary rounded-pill px-4 shadow-sm"><i class="fas fa-plus"></i> Add Money</a>
+</div>
 
-<div class="row mt-4">
-    {% for bal in balances %}
-    <div class="col-md-4">
-        <div class="card shadow-sm border-0 mb-3">
-            <div class="card-body">
-                <h5 class="text-secondary">{{ bal['currency'] }}</h5>
-                <h2 class="fw-bold">{{ "%.2f"|format(bal['amount']) }}</h2>
+<div class="row">
+    <div class="col-lg-8">
+        <h5 class="mb-3 text-secondary">Your Wallets</h5>
+        <div class="row g-3">
+            {% for bal in balances %}
+            <div class="col-md-6">
+                <div class="card wallet-box p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-light rounded-circle p-3 me-3 text-primary">
+                                <i class="fas fa-wallet fa-lg"></i>
+                            </div>
+                            <h5 class="mb-0 text-muted">{{ bal['currency'] }} Wallet</h5>
+                        </div>
+                        <i class="fas fa-ellipsis-h text-muted"></i>
+                    </div>
+                    <h2 class="fw-bold mb-0">{{ "%.2f"|format(bal['amount']) }} <span class="fs-6 text-muted">{{ bal['currency'] }}</span></h2>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-12"><div class="alert alert-info">No wallets found.</div></div>
+            {% endfor %}
+        </div>
+
+        <h5 class="mb-3 mt-5 text-secondary">Activity</h5>
+        <div class="card wallet-box p-4">
+            <div class="d-flex justify-content-around text-center">
+                <div>
+                    <h3 class="fw-bold text-primary">{{ tx_count }}</h3>
+                    <small class="text-muted">Transactions</small>
+                </div>
+                <div class="border-start"></div>
+                <div>
+                    <h3 class="fw-bold text-success">{{ cards|length }}</h3>
+                    <small class="text-muted">Active Cards</small>
+                </div>
+                <div class="border-start"></div>
+                <div>
+                    <h3 class="fw-bold text-warning">0</h3>
+                    <small class="text-muted">Pending Issues</small>
+                </div>
             </div>
         </div>
     </div>
-    {% else %}
-    <div class="col-12"><p>No wallets active.</p></div>
-    {% endfor %}
-</div>
 
-<div class="row mt-4">
-    <div class="col-md-6">
-        <div class="card p-3">
-            <h5>Quick Stats</h5>
-            <ul>
-                <li>Active Cards: <strong>{{ card_count }}</strong></li>
-                <li>Total Transactions: <strong>{{ tx_count }}</strong></li>
-            </ul>
+    <div class="col-lg-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="text-secondary m-0">My Cards</h5>
+            <a href="{{ url_for('cards') }}" class="text-decoration-none small">View All</a>
         </div>
+
+        {% for c in cards %}
+        <div class="bank-card mb-3 {{ 'bg-gradient-visa' if c['card_type'] == 'VISA' else 'bg-gradient-master' }}">
+            <div class="d-flex justify-content-between">
+                <span class="badge bg-white text-dark opacity-75">{{ c['card_type'] }}</span>
+                <span class="text-white opacity-75">{{ c['currency'] }}</span>
+            </div>
+            
+            <div class="my-2">
+                <div class="card-chip"></div>
+                <div class="card-number">{{ c['card_number'] }}</div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-end">
+                <div>
+                    <small class="opacity-75 d-block" style="font-size: 0.8rem;">Balance</small>
+                    <span class="card-balance">{{ "%.2f"|format(c['balance']) }}</span>
+                </div>
+                <div class="text-end">
+                    <small class="opacity-75 d-block" style="font-size: 0.7rem;">Expires</small>
+                    <span class="fw-bold">{{ c['expiry'] }}</span>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="text-center p-4 card wallet-box text-muted">
+            <i class="fas fa-credit-card fa-3x mb-3 text-secondary"></i>
+            <p>No cards active.</p>
+            <a href="{{ url_for('order_card') }}" class="btn btn-sm btn-outline-primary">Order Card</a>
+        </div>
+        {% endfor %}
     </div>
 </div>
 {% endblock %}
