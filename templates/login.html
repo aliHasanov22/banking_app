@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-4">
+        <div class="card shadow">
+            <div class="card-header bg-dark text-white text-center"><h4>Login</h4></div>
+            <div class="card-body">
+                <form method="POST">
+                    <input type="text" name="id" class="form-control mb-3" placeholder="User ID" required>
+                    <input type="password" name="pin" class="form-control mb-3" placeholder="PIN" required>
+                    <button class="btn btn-primary w-100">Login</button>
+                </form>
+                <div class="text-center mt-3"><a href="{{ url_for('register') }}">Create Account</a></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
