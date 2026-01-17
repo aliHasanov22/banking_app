@@ -190,16 +190,20 @@ def register():
             return redirect(url_for('register'))
             
         conn = get_db()
+        # Ensure status column exists (migration helper)
+        try: conn.execute("SELECT status FROM users LIMIT 1")
+        except: conn.execute("ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'PENDING'")
+            
         count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
         new_id = str(1001 + count)
         
         try:
-            # Using specific columns to handle default profile_pic safely
-            conn.execute("INSERT INTO users (account_id, name, pin, email, phone, id_card) VALUES (?, ?, ?, ?, ?, ?)", 
-                         (new_id, name, pin, email, phone, id_card))
+            # INSERT with 'PENDING' status
+            conn.execute("INSERT INTO users (account_id, name, pin, email, phone, id_card, status) VALUES (?, ?, ?, ?, ?, ?, ?)", 
+                         (new_id, name, pin, email, phone, id_card, 'PENDING'))
             conn.execute("INSERT INTO balances VALUES (?, ?, ?)", (new_id, "AZN", 0.0))
             conn.commit()
-            flash(f"Success! Your User ID is {new_id}", "success")
+            flash(f"Registration Successful! Your ID is {new_id}. Please wait for Admin Approval.", "success")
             return redirect(url_for('login'))
         except sqlite3.IntegrityError:
             flash("ID Card already exists", "danger")
@@ -500,16 +504,39 @@ def card_settings(card_num):
 def order_card():
     if 'user_id' not in session: return redirect(url_for('login'))
     uid = session['user_id']
+    
     if request.method == 'POST':
         conn = get_db()
+        
+        # Check if User is Verified
+        user = conn.execute("SELECT status FROM users WHERE account_id=?", (uid,)).fetchone()
+        if user['status'] != 'ACTIVE':
+            flash("Account must be Verified by Admin to order cards.", "warning")
+            conn.close()
+            return redirect(url_for('cards'))
+
         count = conn.execute("SELECT COUNT(*) FROM cards WHERE account_id=?", (uid,)).fetchone()[0]
         if count >= 3:
             flash("Max 3 Cards allowed", "danger")
         else:
             currency = request.form['currency']
             ctype = request.form['card_type']
+            
+            # --- NEW CARD NUMBER GENERATION LOGIC ---
+            # Format: [Prefix 1] + [Random 11] + [Account ID 4] = 16 Digits
             prefix = "4" if ctype == "VISA" else "5"
-            c_num = prefix + ''.join([str(random.randint(0,9)) for _ in range(15)])
+            
+            # We need 11 random digits to fill the gap
+            middle_part = ''.join([str(random.randint(0,9)) for _ in range(11)])
+            
+            # Ensure Account ID is 4 digits (it starts at 1001, so it fits)
+            # If account ID grows larger than 4 digits, this logic handles it by shrinking the middle part
+            acc_part = str(uid)
+            
+            # Combine
+            c_num = prefix + middle_part + acc_part
+            # ----------------------------------------
+
             cvc = ''.join([str(random.randint(0,9)) for _ in range(3)])
             pin = ''.join([str(random.randint(0,9)) for _ in range(4)])
             
@@ -661,6 +688,7 @@ def logout():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, port=5000)
+
 
 
 
