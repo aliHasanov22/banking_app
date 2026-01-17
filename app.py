@@ -241,7 +241,54 @@ def transfer():
     my_cards = conn.execute("SELECT * FROM cards WHERE account_id=? AND status='ACTIVE'", (uid,)).fetchall()
     conn.close()
     return render_template('transfer.html', cards=my_cards)
+# --- NEW MODULE: TOP UP (Add Money) ---
+@app.route('/topup', methods=['GET', 'POST'])
+def topup():
+    if 'user_id' not in session: return redirect(url_for('login'))
+    uid = session['user_id']
+    conn = get_db()
+    
+    if request.method == 'POST':
+        card_num = request.form['card_num'] # The card receiving money
+        try:
+            amount = float(request.form['amount'])
+        except ValueError:
+            flash("Invalid amount entered.", "danger")
+            return redirect(url_for('topup'))
+            
+        if amount <= 0:
+            flash("Amount must be positive.", "warning")
+        else:
+            # 1. Get card details to find the currency
+            card = conn.execute("SELECT currency, card_number FROM cards WHERE card_number=? AND account_id=?", (card_num, uid)).fetchone()
+            
+            if card:
+                curr = card['currency']
+                
+                # 2. Get current balance
+                bal_row = conn.execute("SELECT amount FROM balances WHERE account_id=? AND currency=?", (uid, curr)).fetchone()
+                current_bal = bal_row['amount'] if bal_row else 0.0
+                
+                # 3. Update Balance
+                if not bal_row:
+                    conn.execute("INSERT INTO balances VALUES (?, ?, ?)", (uid, curr, amount))
+                else:
+                    conn.execute("UPDATE balances SET amount=? WHERE account_id=? AND currency=?", (current_bal + amount, uid, curr))
+                
+                # 4. Log Transaction
+                log_transaction(uid, "DEPOSIT", curr, amount, f"Top Up via Card {card['card_number'][-4:]}")
+                
+                conn.commit()
+                flash(f"Successfully added {amount:.2f} {curr} to your wallet!", "success")
+                conn.close()
+                return redirect(url_for('dashboard'))
+            else:
+                flash("Card not found.", "danger")
 
+    # Get active cards to show in the dropdown
+    my_cards = conn.execute("SELECT * FROM cards WHERE account_id=? AND status='ACTIVE'", (uid,)).fetchall()
+    conn.close()
+    return render_template('topup.html', cards=my_cards)
 # 5. Cards & Settings
 @app.route('/cards')
 def cards():
@@ -417,4 +464,5 @@ def logout():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, port=5000)
+
 
