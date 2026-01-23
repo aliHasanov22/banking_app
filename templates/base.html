@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,188 +11,267 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
+        /* --- 1. CSS VARIABLES (THEME ENGINE) --- */
         :root {
-            --sidebar-bg: #0f172a;       /* Dark Navy */
-            --sidebar-hover: #1e293b;    /* Lighter Navy */
-            --accent-color: #3b82f6;     /* Bright Blue */
-            --bg-body: #f1f5f9;          /* Light Grey for Content */
-            --text-dark: #1e293b;
-            --text-light: #94a3b8;
+            /* Light Mode (Default) */
+            --bg-body: #f8fafc;
+            --bg-sidebar: #0f172a;       /* Always Dark Sidebar for contrast */
+            --bg-card: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --sidebar-width: 280px;
+            --header-height: 70px;
+            --sidebar-text: #cbd5e1;
+            --sidebar-text-active: #ffffff;
+            --sidebar-bg-active: rgba(255, 255, 255, 0.1);
+            --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -1px rgb(0 0 0 / 0.06);
+        }
+
+        [data-theme="dark"] {
+            /* Dark Mode Overrides */
+            --bg-body: #020617;
+            --bg-card: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --shadow-sm: none;
+            --shadow-md: 0 10px 15px -3px rgb(0 0 0 / 0.5);
         }
 
         body {
             background-color: var(--bg-body);
             font-family: 'Inter', sans-serif;
-            color: var(--text-dark);
+            color: var(--text-main);
+            transition: background-color 0.3s ease, color 0.3s ease;
             overflow-x: hidden;
         }
 
-        /* --- SIDEBAR STYLING --- */
+        /* --- 2. SIDEBAR STYLING --- */
         .sidebar {
-            width: 260px;
+            width: var(--sidebar-width);
             height: 100vh;
-            background-color: var(--sidebar-bg);
-            color: white;
+            background-color: var(--bg-sidebar);
             position: fixed;
             top: 0;
             left: 0;
+            z-index: 1050;
             display: flex;
             flex-direction: column;
-            z-index: 1000;
-            box-shadow: 4px 0 24px rgba(0,0,0,0.05);
-            transition: 0.3s;
+            transition: transform 0.3s ease-in-out;
+            border-right: 1px solid rgba(255,255,255,0.05);
         }
 
         .brand-logo {
-            padding: 25px;
-            font-size: 1.5rem;
-            font-weight: 800;
-            letter-spacing: 1px;
-            color: white;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
+            height: var(--header-height);
             display: flex;
             align-items: center;
-            gap: 10px;
+            padding: 0 25px;
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: white;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
         }
 
-        .nav-links {
+        .nav-container {
             flex-grow: 1;
-            padding: 20px 10px;
+            padding: 20px 15px;
             overflow-y: auto;
         }
+
+        /* FIX: High Contrast Category Headers */
+        .sidebar-category {
+            color: #64748b; /* Lighter grey for visibility */
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 25px 0 10px 15px; /* Spacing */
+            display: block;
+        }
+        
+        .sidebar-category:first-child { margin-top: 0; }
 
         .nav-link {
             display: flex;
             align-items: center;
-            padding: 14px 20px;
-            color: var(--text-light);
+            color: var(--sidebar-text);
+            padding: 12px 15px;
+            border-radius: 10px;
             text-decoration: none;
-            border-radius: 12px;
-            margin-bottom: 5px;
+            transition: all 0.2s ease;
+            margin-bottom: 4px;
             font-weight: 500;
-            transition: all 0.2s ease-in-out;
+            font-size: 0.95rem;
         }
 
         .nav-link i {
             width: 24px;
-            font-size: 1.1rem;
-            margin-right: 12px;
             text-align: center;
+            margin-right: 12px;
+            font-size: 1.1rem;
+            transition: transform 0.2s;
         }
 
         .nav-link:hover {
-            background-color: var(--sidebar-hover);
             color: white;
-            transform: translateX(5px);
+            background-color: rgba(255,255,255,0.05);
+            transform: translateX(4px);
         }
+        
+        .nav-link:hover i { transform: scale(1.1); }
 
         .nav-link.active {
-            background-color: var(--accent-color);
+            background-color: var(--primary);
             color: white;
             box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
         }
 
-        .user-mini-profile {
+        /* User Profile in Sidebar */
+        .sidebar-footer {
             padding: 20px;
             border-top: 1px solid rgba(255,255,255,0.05);
-            background-color: rgba(0,0,0,0.2);
+            background: rgba(0,0,0,0.2);
         }
 
-        /* --- MAIN CONTENT AREA --- */
+        /* --- 3. MAIN WRAPPER --- */
         .main-wrapper {
-            margin-left: 260px; /* Same as sidebar width */
+            margin-left: var(--sidebar-width);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
+            transition: margin-left 0.3s ease-in-out;
         }
 
-        /* Top Header */
+        /* --- 4. TOP HEADER (Glassmorphism) --- */
         .top-header {
-            background: white;
-            height: 70px;
+            height: var(--header-height);
+            background-color: var(--bg-card); /* Changes with theme */
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 0 30px;
-            box-shadow: 0 2px 15px rgba(0,0,0,0.03);
             position: sticky;
             top: 0;
-            z-index: 900;
+            z-index: 1040;
+            border-bottom: 1px solid var(--border-color);
+            transition: background-color 0.3s ease;
         }
 
-        .page-title {
+        .header-title {
             font-size: 1.25rem;
             font-weight: 700;
-            color: var(--text-dark);
+            color: var(--text-main);
             margin: 0;
         }
 
+        /* Theme Toggle Button */
+        .theme-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .theme-btn:hover { background-color: var(--border-color); transform: rotate(15deg); }
+
+        /* Mobile Toggle */
+        .mobile-toggle {
+            display: none; /* Hidden on Desktop */
+            background: none;
+            border: none;
+            color: var(--text-main);
+            font-size: 1.5rem;
+            margin-right: 15px;
+        }
+
+        /* --- 5. CONTENT AREA --- */
         .content-body {
             padding: 30px;
             flex-grow: 1;
         }
 
-        /* --- CUSTOM COMPONENTS --- */
-        
-        /* 1. Wallet Cards */
-        .wallet-box {
-            background: white;
+        /* --- 6. GLOBAL CARD & UI STYLES --- */
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-sm);
             border-radius: 16px;
-            border: 1px solid rgba(0,0,0,0.05);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-            transition: transform 0.2s;
+            color: var(--text-main);
         }
-        .wallet-box:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); }
-
-        /* 2. Bank Cards (Visa/Master) */
-        .bank-card {
-            border-radius: 20px;
-            color: white;
-            padding: 25px;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 15px 30px -5px rgba(0,0,0,0.3);
-            transition: transform 0.3s ease;
-            min-height: 220px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-        .bank-card:hover { transform: translateY(-5px) scale(1.02); }
         
-        .bg-gradient-visa { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); }
-        .bg-gradient-master { background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); }
-        .bg-gradient-dark { background: linear-gradient(135deg, #334155 0%, #0f172a 100%); }
+        .form-control, .form-select {
+            background-color: var(--bg-body);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 12px;
+            border-radius: 12px;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            background-color: var(--bg-card);
+            border-color: var(--primary);
+            color: var(--text-main);
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+        }
 
-        .card-number { font-family: 'Courier New', monospace; letter-spacing: 3px; font-size: 1.3rem; }
-
-        /* 3. Bonus Progress Rings (Preserved from your code) */
+        /* Bonus Rings (Preserved Logic) */
         .progress-ring-container {
-            position: relative; width: 150px; height: 150px; margin: 0 auto; border-radius: 50%;
+            position: relative; width: 140px; height: 140px; margin: 0 auto; border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
+            background: var(--bg-card); /* Fix for dark mode ring bg */
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.1);
         }
         .progress-ring-inner {
-            width: 120px; height: 120px; background-color: white; border-radius: 50%;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            width: 110px; height: 110px; background-color: var(--bg-card); 
+            border-radius: 50%; display: flex; flex-direction: column; 
+            align-items: center; justify-content: center;
+            color: var(--text-main);
+            z-index: 2;
         }
         .ring-AZN { color: #3b82f6; }
         .ring-USD { color: #10b981; }
         .ring-EUR { color: #f59e0b; }
 
+        /* --- 7. MOBILE RESPONSIVENESS --- */
+        @media (max-width: 992px) {
+            .sidebar { transform: translateX(-100%); } /* Hide Sidebar */
+            .main-wrapper { margin-left: 0; }
+            .mobile-toggle { display: block; } /* Show Hamburger */
+            
+            /* Class to show sidebar on mobile */
+            body.sidebar-open .sidebar { transform: translateX(0); }
+            
+            /* Overlay when sidebar is open */
+            body.sidebar-open::after {
+                content: '';
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.5); z-index: 1045;
+                backdrop-filter: blur(2px);
+            }
+        }
     </style>
 </head>
 <body>
 
     {% if session.user_id and not session.is_admin %}
-    <div class="sidebar">
+    <nav class="sidebar" id="sidebar">
         <div class="brand-logo">
-            <i class="fas fa-university text-primary"></i> NEXO
+            <i class="fas fa-university text-primary me-2"></i> NEXO
         </div>
         
-        <div class="nav-links">
-            <small class="text-uppercase text-muted fw-bold ms-3 mb-2 d-block" style="font-size: 0.7rem;">Main Menu</small>
+        <div class="nav-container">
+            <span class="sidebar-category">Main Menu</span>
             
             <a href="{{ url_for('dashboard') }}" class="nav-link {{ 'active' if request.endpoint == 'dashboard' else '' }}">
                 <i class="fas fa-th-large"></i> Dashboard
@@ -210,7 +289,7 @@
                 <i class="fas fa-gift"></i> Rewards
             </a>
             
-            <small class="text-uppercase text-muted fw-bold ms-3 mb-2 mt-4 d-block" style="font-size: 0.7rem;">Settings</small>
+            <span class="sidebar-category mt-4">Settings</span>
             
             <a href="{{ url_for('history') }}" class="nav-link {{ 'active' if request.endpoint == 'history' else '' }}">
                 <i class="fas fa-history"></i> History
@@ -223,42 +302,54 @@
             </a>
         </div>
 
-        <div class="user-mini-profile d-flex align-items-center justify-content-between">
-            <div class="d-flex align-items-center">
-                <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center text-white fw-bold me-2" style="width: 35px; height: 35px;">
-                    <i class="fas fa-user"></i>
+        <div class="sidebar-footer">
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center text-white fw-bold me-2" style="width: 38px; height: 38px;">
+                        {{ session.get('name', 'U')[0] }}
+                    </div>
+                    <div style="line-height: 1.2;">
+                        <small class="d-block text-white fw-bold" style="font-size: 0.85rem;">{{ session.get('name', 'User') }}</small>
+                        <small class="text-white-50" style="font-size: 0.7rem;">ID: {{ session.user_id }}</small>
+                    </div>
                 </div>
-                <div style="line-height: 1.2;">
-                    <small class="d-block text-white fw-bold">User {{ session.user_id }}</small>
-                    <small class="text-muted" style="font-size: 0.7rem;">Online</small>
-                </div>
+                <a href="{{ url_for('logout') }}" class="text-danger p-2" title="Logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                </a>
             </div>
-            <a href="{{ url_for('logout') }}" class="text-danger" title="Logout"><i class="fas fa-sign-out-alt"></i></a>
         </div>
-    </div>
+    </nav>
     {% endif %}
 
     <div class="main-wrapper" style="{{ 'margin-left: 0;' if not session.user_id or session.is_admin else '' }}">
         
         {% if session.user_id and not session.is_admin %}
-        <div class="top-header">
-            <h2 class="page-title">
-                {% if request.endpoint == 'dashboard' %} Overview
-                {% elif request.endpoint == 'cards' %} My Cards
-                {% elif request.endpoint == 'transfer' %} Money Transfer
-                {% elif request.endpoint == 'bonuses' %} Rewards Center
-                {% else %} NEXO Bank {% endif %}
-            </h2>
+        <header class="top-header">
+            <div class="d-flex align-items-center">
+                <button class="mobile-toggle" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h2 class="header-title">
+                    {% if request.endpoint == 'dashboard' %} Overview
+                    {% elif request.endpoint == 'cards' %} My Cards
+                    {% elif request.endpoint == 'transfer' %} Money Transfer
+                    {% elif request.endpoint == 'bonuses' %} Rewards Center
+                    {% elif request.endpoint == 'history' %} Transactions
+                    {% elif request.endpoint == 'profile' %} Account Settings
+                    {% else %} NEXO Bank {% endif %}
+                </h2>
+            </div>
             
             <div class="d-flex align-items-center gap-3">
-                <button class="btn btn-light rounded-circle border">
-                    <i class="fas fa-bell text-muted"></i>
+                <button class="theme-btn" onclick="toggleTheme()" title="Switch Theme">
+                    <i class="fas fa-moon" id="themeIcon"></i>
                 </button>
-                <a href="{{ url_for('topup') }}" class="btn btn-primary d-flex align-items-center gap-2 px-3 rounded-pill">
-                    <i class="fas fa-plus"></i> Top Up
+                
+                <a href="{{ url_for('topup') }}" class="btn btn-primary d-flex align-items-center gap-2 px-3 rounded-pill fw-bold shadow-sm">
+                    <i class="fas fa-plus"></i> <span class="d-none d-sm-inline">Top Up</span>
                 </a>
             </div>
-        </div>
+        </header>
         {% endif %}
 
         <div class="content-body">
@@ -278,5 +369,46 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 1. Theme Logic
+        const html = document.documentElement;
+        const themeIcon = document.getElementById('themeIcon');
+        
+        // Check saved theme
+        if (localStorage.getItem('theme') === 'dark') {
+            html.setAttribute('data-theme', 'dark');
+            if(themeIcon) themeIcon.className = 'fas fa-sun';
+        }
+
+        function toggleTheme() {
+            const current = html.getAttribute('data-theme');
+            if (current === 'dark') {
+                html.setAttribute('data-theme', 'light');
+                localStorage.setItem('theme', 'light');
+                themeIcon.className = 'fas fa-moon';
+            } else {
+                html.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+                themeIcon.className = 'fas fa-sun';
+            }
+        }
+
+        // 2. Sidebar Logic (Mobile)
+        function toggleSidebar() {
+            document.body.classList.toggle('sidebar-open');
+        }
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', function(event) {
+            const sidebar = document.getElementById('sidebar');
+            const toggle = document.querySelector('.mobile-toggle');
+            if (document.body.classList.contains('sidebar-open') && 
+                sidebar && 
+                !sidebar.contains(event.target) && 
+                !toggle.contains(event.target)) {
+                document.body.classList.remove('sidebar-open');
+            }
+        });
+    </script>
 </body>
 </html>
