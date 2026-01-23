@@ -3,125 +3,280 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ATM Ultimate V6</title>
+    <title>NEXO Bank Ultimate</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        body { background-color: #f0f2f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        
-        /* Sidebar Styling */
-        .sidebar { min-height: 100vh; background: linear-gradient(180deg, #1a1f3c 0%, #2c3e50 100%); color: white; box-shadow: 4px 0 10px rgba(0,0,0,0.1); }
-        .sidebar h4 { font-weight: 700; letter-spacing: 1px; padding: 20px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .sidebar a { color: #aab0c7; text-decoration: none; padding: 16px 25px; display: block; transition: all 0.3s; border-left: 4px solid transparent; }
-        .sidebar a:hover, .sidebar a.active { background: rgba(255,255,255,0.1); color: #fff; border-left-color: #00d2ff; }
-        .sidebar i { width: 25px; text-align: center; }
 
-        /* Card Designs */
+    <style>
+        :root {
+            --sidebar-bg: #0f172a;       /* Dark Navy */
+            --sidebar-hover: #1e293b;    /* Lighter Navy */
+            --accent-color: #3b82f6;     /* Bright Blue */
+            --bg-body: #f1f5f9;          /* Light Grey for Content */
+            --text-dark: #1e293b;
+            --text-light: #94a3b8;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            font-family: 'Inter', sans-serif;
+            color: var(--text-dark);
+            overflow-x: hidden;
+        }
+
+        /* --- SIDEBAR STYLING --- */
+        .sidebar {
+            width: 260px;
+            height: 100vh;
+            background-color: var(--sidebar-bg);
+            color: white;
+            position: fixed;
+            top: 0;
+            left: 0;
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+            box-shadow: 4px 0 24px rgba(0,0,0,0.05);
+            transition: 0.3s;
+        }
+
+        .brand-logo {
+            padding: 25px;
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+            color: white;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-links {
+            flex-grow: 1;
+            padding: 20px 10px;
+            overflow-y: auto;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 14px 20px;
+            color: var(--text-light);
+            text-decoration: none;
+            border-radius: 12px;
+            margin-bottom: 5px;
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+        }
+
+        .nav-link i {
+            width: 24px;
+            font-size: 1.1rem;
+            margin-right: 12px;
+            text-align: center;
+        }
+
+        .nav-link:hover {
+            background-color: var(--sidebar-hover);
+            color: white;
+            transform: translateX(5px);
+        }
+
+        .nav-link.active {
+            background-color: var(--accent-color);
+            color: white;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .user-mini-profile {
+            padding: 20px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            background-color: rgba(0,0,0,0.2);
+        }
+
+        /* --- MAIN CONTENT AREA --- */
+        .main-wrapper {
+            margin-left: 260px; /* Same as sidebar width */
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top Header */
+        .top-header {
+            background: white;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.03);
+            position: sticky;
+            top: 0;
+            z-index: 900;
+        }
+
+        .page-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin: 0;
+        }
+
+        .content-body {
+            padding: 30px;
+            flex-grow: 1;
+        }
+
+        /* --- CUSTOM COMPONENTS --- */
+        
+        /* 1. Wallet Cards */
+        .wallet-box {
+            background: white;
+            border-radius: 16px;
+            border: 1px solid rgba(0,0,0,0.05);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s;
+        }
+        .wallet-box:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); }
+
+        /* 2. Bank Cards (Visa/Master) */
         .bank-card {
             border-radius: 20px;
             color: white;
             padding: 25px;
             position: relative;
             overflow: hidden;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            box-shadow: 0 15px 30px -5px rgba(0,0,0,0.3);
             transition: transform 0.3s ease;
-            min-height: 200px;
+            min-height: 220px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
         }
-        .bank-card:hover { transform: translateY(-5px); }
+        .bank-card:hover { transform: translateY(-5px) scale(1.02); }
         
-        /* Dynamic Gradients */
-        .bg-gradient-visa { background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%); } /* Blue */
-        .bg-gradient-master { background: linear-gradient(135deg, #ff9966 0%, #ff5e62 100%); } /* Orange/Red */
-        .bg-gradient-dark { background: linear-gradient(135deg, #434343 0%, #000000 100%); } /* Black */
+        .bg-gradient-visa { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); }
+        .bg-gradient-master { background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); }
+        .bg-gradient-dark { background: linear-gradient(135deg, #334155 0%, #0f172a 100%); }
 
-        .card-chip { width: 50px; height: 35px; background: #ffd700; border-radius: 8px; margin-bottom: 20px; opacity: 0.8; }
-        .card-number { font-size: 1.4rem; letter-spacing: 2px; font-family: 'Courier New', monospace; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
-        .card-balance { font-size: 1.8rem; font-weight: bold; }
-        
-        /* Wallet Boxes */
-        .wallet-box {
-            background: white; border-radius: 15px; border: none;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05); transition: 0.3s;
-        }
-        .wallet-box:hover { box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
-        
-        .content { padding: 40px; }
-        /* --- CIRCULAR PROGRESS DIAGRAMS --- */
+        .card-number { font-family: 'Courier New', monospace; letter-spacing: 3px; font-size: 1.3rem; }
+
+        /* 3. Bonus Progress Rings (Preserved from your code) */
         .progress-ring-container {
-            position: relative;
-            width: 150px;
-            height: 150px;
-            margin: 0 auto;
-            border-radius: 50%;
-            /* The magic gradient will be set inline in HTML */
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            position: relative; width: 150px; height: 150px; margin: 0 auto; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
             box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
         }
-
         .progress-ring-inner {
-            width: 120px;
-            height: 120px;
-            background-color: white;
-            border-radius: 50%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            width: 120px; height: 120px; background-color: white; border-radius: 50%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
             box-shadow: 0 5px 15px rgba(0,0,0,0.05);
         }
+        .ring-AZN { color: #3b82f6; }
+        .ring-USD { color: #10b981; }
+        .ring-EUR { color: #f59e0b; }
 
-        .bonus-card {
-            transition: transform 0.3s;
-            border: none;
-            border-radius: 15px;
-            overflow: hidden;
-        }
-        .bonus-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-        }
-
-        /* Colors for specific currencies */
-        .ring-AZN { color: #007bff; --ring-color: #007bff; }
-        .ring-USD { color: #28a745; --ring-color: #28a745; }
-        .ring-EUR { color: #ffc107; --ring-color: #ffc107; }
     </style>
 </head>
 <body>
-    <div class="d-flex">
+
+    {% if session.user_id and not session.is_admin %}
+    <div class="sidebar">
+        <div class="brand-logo">
+            <i class="fas fa-university text-primary"></i> NEXO
+        </div>
+        
+        <div class="nav-links">
+            <small class="text-uppercase text-muted fw-bold ms-3 mb-2 d-block" style="font-size: 0.7rem;">Main Menu</small>
+            
+            <a href="{{ url_for('dashboard') }}" class="nav-link {{ 'active' if request.endpoint == 'dashboard' else '' }}">
+                <i class="fas fa-th-large"></i> Dashboard
+            </a>
+            <a href="{{ url_for('cards') }}" class="nav-link {{ 'active' if 'cards' in request.endpoint or 'order' in request.endpoint else '' }}">
+                <i class="fas fa-credit-card"></i> Cards
+            </a>
+            <a href="{{ url_for('transfer') }}" class="nav-link {{ 'active' if request.endpoint == 'transfer' else '' }}">
+                <i class="fas fa-paper-plane"></i> Transfer
+            </a>
+            <a href="{{ url_for('exchange') }}" class="nav-link {{ 'active' if request.endpoint == 'exchange' else '' }}">
+                <i class="fas fa-sync-alt"></i> Exchange
+            </a>
+            <a href="{{ url_for('bonuses') }}" class="nav-link {{ 'active' if request.endpoint == 'bonuses' else '' }}">
+                <i class="fas fa-gift"></i> Rewards
+            </a>
+            
+            <small class="text-uppercase text-muted fw-bold ms-3 mb-2 mt-4 d-block" style="font-size: 0.7rem;">Settings</small>
+            
+            <a href="{{ url_for('history') }}" class="nav-link {{ 'active' if request.endpoint == 'history' else '' }}">
+                <i class="fas fa-history"></i> History
+            </a>
+            <a href="{{ url_for('support') }}" class="nav-link {{ 'active' if request.endpoint == 'support' else '' }}">
+                <i class="fas fa-headset"></i> Support
+            </a>
+             <a href="{{ url_for('profile') }}" class="nav-link {{ 'active' if request.endpoint == 'profile' else '' }}">
+                <i class="fas fa-user-cog"></i> Profile
+            </a>
+        </div>
+
+        <div class="user-mini-profile d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center">
+                <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center text-white fw-bold me-2" style="width: 35px; height: 35px;">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div style="line-height: 1.2;">
+                    <small class="d-block text-white fw-bold">User {{ session.user_id }}</small>
+                    <small class="text-muted" style="font-size: 0.7rem;">Online</small>
+                </div>
+            </div>
+            <a href="{{ url_for('logout') }}" class="text-danger" title="Logout"><i class="fas fa-sign-out-alt"></i></a>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="main-wrapper" style="{{ 'margin-left: 0;' if not session.user_id or session.is_admin else '' }}">
+        
         {% if session.user_id and not session.is_admin %}
-        <div class="sidebar" style="width: 260px; flex-shrink: 0;">
-            <h4 class="text-center">ATM V6</h4>
-            <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint == 'dashboard' else '' }}"><i class="fas fa-th-large"></i> Dashboard</a>
-            <a href="{{ url_for('topup') }}" class="{{ 'active' if request.endpoint == 'topup' else '' }}"><i class="fas fa-plus-circle"></i> Top Up</a>
-            <a href="{{ url_for('transfer') }}" class="{{ 'active' if request.endpoint == 'transfer' else '' }}"><i class="fas fa-exchange-alt"></i> Transfer</a>
-            <a href="{{ url_for('exchange') }}" class="{{ 'active' if request.endpoint == 'exchange' else '' }}"><i class="fas fa-sync-alt"></i> Exchange</a>
-            <a href="{{ url_for('cards') }}" class="{{ 'active' if 'cards' in request.endpoint or 'order' in request.endpoint else '' }}"><i class="fas fa-credit-card"></i> My Cards</a>
-            <a href="{{ url_for('bonuses') }}" class="{{ 'active' if request.endpoint == 'bonuses' else '' }}"><i class="fas fa-gift"></i> Bonuses</a>
-            <a href="{{ url_for('history') }}" class="{{ 'active' if request.endpoint == 'history' else '' }}"><i class="fas fa-history"></i> History</a>
-            <a href="{{ url_for('profile') }}" class="{{ 'active' if request.endpoint == 'profile' else '' }}"><i class="fas fa-user-circle"></i> My Profile</a>
-            <a href="{{ url_for('support') }}" class="{{ 'active' if request.endpoint == 'support' else '' }}"><i class="fas fa-headset"></i> Support</a>
-            <a href="{{ url_for('logout') }}" class="text-danger mt-5"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        <div class="top-header">
+            <h2 class="page-title">
+                {% if request.endpoint == 'dashboard' %} Overview
+                {% elif request.endpoint == 'cards' %} My Cards
+                {% elif request.endpoint == 'transfer' %} Money Transfer
+                {% elif request.endpoint == 'bonuses' %} Rewards Center
+                {% else %} NEXO Bank {% endif %}
+            </h2>
+            
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-light rounded-circle border">
+                    <i class="fas fa-bell text-muted"></i>
+                </button>
+                <a href="{{ url_for('topup') }}" class="btn btn-primary d-flex align-items-center gap-2 px-3 rounded-pill">
+                    <i class="fas fa-plus"></i> Top Up
+                </a>
+            </div>
         </div>
         {% endif %}
 
-        <div class="flex-grow-1 content">
+        <div class="content-body">
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
                     {% for category, message in messages %}
-                        <div class="alert alert-{{ category }} shadow-sm rounded-pill px-4">{{ message }}</div>
+                        <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm border-0 rounded-3 mb-4" role="alert">
+                            <i class="fas fa-info-circle me-2"></i> {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
                     {% endfor %}
                 {% endif %}
             {% endwith %}
+
             {% block content %}{% endblock %}
         </div>
     </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
-
