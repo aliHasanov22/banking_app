@@ -821,6 +821,72 @@ def create_deposit():
     
     return redirect(url_for('dashboard'))
 
+# --- CURRENCY EXCHANGE ROUTE ---
+@app.route('/exchange', methods=['GET', 'POST'])
+def exchange():
+    if 'user_id' not in session: return redirect(url_for('login'))
+    
+    uid = session['user_id']
+    conn = get_db()
+    
+    # 1. Fetch Current Balances to show the user
+    balances = conn.execute("SELECT * FROM balances WHERE account_id=?", (uid,)).fetchall()
+    bal_dict = {b['currency']: b['amount'] for b in balances}
+    
+    # 2. Define Exchange Rates (Hardcoded for simplicity)
+    # format: 'FROM_TO' : rate
+    rates = {
+        'USD_AZN': 1.70, 'AZN_USD': 0.588,
+        'EUR_AZN': 1.85, 'AZN_EUR': 0.540,
+        'EUR_USD': 1.09, 'USD_EUR': 0.917,
+        'USD_USD': 1.0,  'AZN_AZN': 1.0, 'EUR_EUR': 1.0
+    }
+
+    if request.method == 'POST':
+        curr_from = request.form['curr_from']
+        curr_to = request.form['curr_to']
+        try:
+            amount = float(request.form['amount'])
+        except ValueError:
+            flash("Invalid amount.", "danger")
+            return redirect(url_for('exchange'))
+
+        # Security Checks
+        if amount <= 0:
+            flash("Amount must be positive.", "danger")
+        elif curr_from == curr_to:
+            flash("Cannot exchange the same currency.", "warning")
+        elif bal_dict.get(curr_from, 0) < amount:
+            flash(f"Insufficient {curr_from} balance.", "danger")
+        else:
+            # 3. Calculate Exchange
+            key = f"{curr_from}_{curr_to}"
+            rate = rates.get(key)
+            
+            if not rate:
+                flash("Exchange pair not supported.", "danger")
+            else:
+                final_amount = round(amount * rate, 2)
+                
+                # 4. Update Balances (Deduct From, Add To)
+                conn.execute("UPDATE balances SET amount = amount - ? WHERE account_id=? AND currency=?", (amount, uid, curr_from))
+                conn.execute("UPDATE balances SET amount = amount + ? WHERE account_id=? AND currency=?", (final_amount, uid, curr_to))
+                
+                # 5. Record Transaction
+                note = f"FX: {amount} {curr_from} -> {final_amount} {curr_to}"
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                
+                # Log as a 'TRANSFER' or specialized 'EXCHANGE' type
+                conn.execute("INSERT INTO transactions (account_id, timestamp, type, currency, amount, note) VALUES (?, ?, ?, ?, ?, ?)",
+                             (uid, timestamp, "EXCHANGE", curr_from, -amount, note))
+                
+                conn.commit()
+                flash(f"Success! Converted {amount} {curr_from} to {final_amount} {curr_to}.", "success")
+                return redirect(url_for('dashboard'))
+
+    conn.close()
+    return render_template('exchange.html', balances=bal_dict, rates=rates)
+
 @app.route('/generate_qr/<card_number>')
 def generate_qr(card_number):
     if 'user_id' not in session: return redirect(url_for('login'))
@@ -843,3 +909,4 @@ def logout():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=5000)
+
