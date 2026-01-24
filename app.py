@@ -395,20 +395,26 @@ def transfer():
             # Validation
             if not rcv:
                 flash("Receiver not found", "danger")
+                return redirect(url_for('transfer'))
             elif rcv['status'] != 'ACTIVE':
                 flash("Receiver card inactive", "danger")
+                return redirect(url_for('transfer'))
             elif rcv['currency'] != sender_card['currency']:
                 flash("Currency mismatch.", "danger")
+                return redirect(url_for('transfer'))
             elif rcv['account_id'] == uid:
                 flash("Cannot send to self.", "warning")
+                return redirect(url_for('transfer'))
             elif amount > sender_card['expense_limit']: 
                 flash(f"Amount exceeds your card limit of {sender_card['expense_limit']}", "danger")
+                return redirect(url_for('transfer'))
             else:
                 bal_row = conn.execute("SELECT amount FROM balances WHERE account_id=? AND currency=?", (uid, sender_card['currency'])).fetchone()
                 bal = bal_row['amount'] if bal_row else 0.0
                 
                 if total_deduction > bal:
                     flash(f"Insufficient funds. Total needed: {total_deduction:.2f} (Amount + {total_fee} Fee)", "danger")
+                    return redirect(url_for('transfer'))
                 else:
                     # Execute Transfer
                     conn.execute("UPDATE balances SET amount=? WHERE account_id=? AND currency=?", (bal - total_deduction, uid, sender_card['currency']))
@@ -472,6 +478,7 @@ def topup():
             
             if amount <= 0:
                 flash("Amount must be positive.", "warning")
+                return redirect(url_for('topup'))
             else:
                 card = conn.execute("""SELECT currency, status FROM cards WHERE card_number=? AND account_id=?""", (card_num, uid)).fetchone()
                 if not card:
