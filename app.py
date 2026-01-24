@@ -358,20 +358,28 @@ def transfer():
         if request.method == 'POST':
             sender_card_num = request.form['sender_card']
             receiver_card_num = request.form['receiver_card']
-            try: amount = float(request.form['amount'])
-            except: amount = 0
+            try:
+                amount = float(request.form['amount'])
+            except (TypeError, ValueError):
+                amount = 0
             pin = request.form['pin']
-            
+
             sender_card = conn.execute(""" SELECT * FROM cards WHERE card_number=? AND account_id=? """, (sender_card_num, uid)).fetchone()
             if not sender_card:
                 flash("Sender card not found.", "danger")
+                return redirect(url_for('transfer'))
             elif sender_card['status'] != 'ACTIVE':
                 flash("Sender card is not ACTIVE.", "danger")
+                return redirect(url_for('transfer'))
             elif sender_card['card_pin'] != pin:
                 flash("Invalid PIN.", "danger")
+                return redirect(url_for('transfer'))
+            elif amount <= 0:
+                flash("Amount must be positive.", "warning")
+                return redirect(url_for('transfer'))
 
             rcv = conn.execute("SELECT account_id, status, currency FROM cards WHERE card_number=?", (receiver_card_num,)).fetchone()
-            
+
             # --- UPDATED FEE LOGIC (Excess Only) ---
             total_fee = 0.0
             fee_note = ""
@@ -385,11 +393,14 @@ def transfer():
             # ---------------------------------------
 
             # Validation
-            if not sender_card or sender_card['card_pin'] != pin: flash("Invalid Card or PIN", "danger")
-            elif not rcv: flash("Receiver not found", "danger")
-            elif rcv['status'] != 'ACTIVE': flash("Receiver card inactive", "danger")
-            elif rcv['currency'] != sender_card['currency']: flash("Currency mismatch.", "danger")
-            elif rcv['account_id'] == uid: flash("Cannot send to self.", "warning")
+            if not rcv:
+                flash("Receiver not found", "danger")
+            elif rcv['status'] != 'ACTIVE':
+                flash("Receiver card inactive", "danger")
+            elif rcv['currency'] != sender_card['currency']:
+                flash("Currency mismatch.", "danger")
+            elif rcv['account_id'] == uid:
+                flash("Cannot send to self.", "warning")
             elif amount > sender_card['expense_limit']: 
                 flash(f"Amount exceeds your card limit of {sender_card['expense_limit']}", "danger")
             else:
@@ -454,8 +465,10 @@ def topup():
     try:
         if request.method == 'POST':
             card_num = request.form['card_num']
-            try: amount = float(request.form['amount'])
-            except: amount = 0
+            try:
+                amount = float(request.form['amount'])
+            except (TypeError, ValueError):
+                amount = 0
             
             if amount <= 0:
                 flash("Amount must be positive.", "warning")
@@ -465,22 +478,24 @@ def topup():
                     flash("Card not found.", "danger")
                 elif card['status'] != 'ACTIVE':
                     flash("Card must be ACTIVE to top up.", "danger")
-                if card:
-                    curr = card['currency']
-                    bal_row = conn.execute("SELECT amount FROM balances WHERE account_id=? AND currency=?", (uid, curr)).fetchone()
-                    current_bal = bal_row['amount'] if bal_row else 0.0
-                    
-                    if not bal_row: conn.execute("INSERT INTO balances VALUES (?, ?, ?)", (uid, curr, amount))
-                    else: conn.execute("UPDATE balances SET amount=? WHERE account_id=? AND currency=?", (current_bal + amount, uid, curr))
-                    
-                    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    conn.execute("INSERT INTO transactions (account_id, timestamp, type, currency, amount, note) VALUES (?, ?, ?, ?, ?, ?)",
-                                 (uid, ts, "DEPOSIT", curr, amount, f"Top Up via Card {card_num[-4:]}"))
-                    conn.commit()
-                    flash(f"Added {amount} {curr}!", "success")
-                    return redirect(url_for('dashboard'))
+                if not card or card['status'] != 'ACTIVE':
+                    return redirect(url_for('topup'))
+
+                curr = card['currency']
+                bal_row = conn.execute("SELECT amount FROM balances WHERE account_id=? AND currency=?", (uid, curr)).fetchone()
+                current_bal = bal_row['amount'] if bal_row else 0.0
+
+                if not bal_row:
+                    conn.execute("INSERT INTO balances VALUES (?, ?, ?)", (uid, curr, amount))
                 else:
-                    flash("Card not found.", "danger")
+                    conn.execute("UPDATE balances SET amount=? WHERE account_id=? AND currency=?", (current_bal + amount, uid, curr))
+
+                ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                conn.execute("INSERT INTO transactions (account_id, timestamp, type, currency, amount, note) VALUES (?, ?, ?, ?, ?, ?)",
+                             (uid, ts, "DEPOSIT", curr, amount, f"Top Up via Card {card_num[-4:]}"))
+                conn.commit()
+                flash(f"Added {amount} {curr}!", "success")
+                return redirect(url_for('dashboard'))
         
         my_cards = conn.execute("SELECT * FROM cards WHERE account_id=? AND status='ACTIVE'", (uid,)).fetchall()
         return render_template('topup.html', cards=my_cards)
