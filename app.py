@@ -246,8 +246,9 @@ def dashboard():
     balances = conn.execute("SELECT * FROM balances WHERE account_id=?", (uid,)).fetchall()
     bal_dict = {row['currency']: row['amount'] for row in balances}
     
-    # 2. Get Cards
-    db_cards = conn.execute("SELECT * FROM cards WHERE account_id=? AND status='ACTIVE'", (uid,)).fetchall()
+    # 2. Get Cards update
+    db_cards = db_cards = conn.execute("""SELECT * FROM cards WHERE account_id=?""", (uid,)).fetchall()
+
     cards_with_balance = []
     for c in db_cards:
         c_dict = dict(c)
@@ -361,7 +362,14 @@ def transfer():
             except: amount = 0
             pin = request.form['pin']
             
-            sender_card = conn.execute("SELECT * FROM cards WHERE card_number=?", (sender_card_num,)).fetchone()
+            sender_card = conn.execute(""" SELECT * FROM cards WHERE card_number=? AND account_id=? """, (sender_card_num, uid)).fetchone()
+            if not sender_card:
+                flash("Sender card not found.", "danger")
+            elif sender_card['status'] != 'ACTIVE':
+                flash("Sender card is not ACTIVE.", "danger")
+            elif sender_card['card_pin'] != pin:
+                flash("Invalid PIN.", "danger")
+
             rcv = conn.execute("SELECT account_id, status, currency FROM cards WHERE card_number=?", (receiver_card_num,)).fetchone()
             
             # --- UPDATED FEE LOGIC (Excess Only) ---
@@ -452,7 +460,11 @@ def topup():
             if amount <= 0:
                 flash("Amount must be positive.", "warning")
             else:
-                card = conn.execute("SELECT currency FROM cards WHERE card_number=? AND account_id=?", (card_num, uid)).fetchone()
+                card = conn.execute("""SELECT currency, status FROM cards WHERE card_number=? AND account_id=?""", (card_num, uid)).fetchone()
+                if not card:
+                    flash("Card not found.", "danger")
+                elif card['status'] != 'ACTIVE':
+                    flash("Card must be ACTIVE to top up.", "danger")
                 if card:
                     curr = card['currency']
                     bal_row = conn.execute("SELECT amount FROM balances WHERE account_id=? AND currency=?", (uid, curr)).fetchone()
@@ -548,33 +560,45 @@ def order_card():
             
             # --- CARD NUMBER GENERATION ---
             
-            # Step 1: Prefix & Bank Code (7 Digits Total)
+            # Step 1: Prefix & Bank Code (8 Digits Total)
             # User defined: Visa=4320022, Master=5554523
-            if ctype == "VISA":
-                prefix = "4"
-                bank_code = "320022"  # Combined with prefix = 4320022
-            else:
-                prefix = "5"
-                bank_code = "554523"  # Combined with prefix = 5554523
+            def generate_card_number(ctype):
+                if ctype == "VISA":
+                    prefix, bank_code = "4", "4320022"
+                else:
+                    prefix, bank_code = "5", "5554523"
+                unique = ''.join(str(random.randint(0, 9)) for _ in range(8))
+                return prefix + bank_code + unique
             
             # Step 2: Card Unique Code (8 Digits)
             # Unique random generated code for this specific card
-            card_unique_code = ''.join([str(random.randint(0,9)) for _ in range(8)])
-            
+            #card_unique_code = ''.join([str(random.randint(0,9)) for _ in range(8)])
             # Step 3: Separator (1 Digit)
             # Necessary to reach exactly 16 digits (1+6+1+8 = 16)
             separator = "0"
             
             # Combine
-            c_num = prefix + bank_code + separator + card_unique_code
+            c_num = None
+            for _ in range(10):
+                candidate = generate_card_number(ctype)
+                exists = conn.execute("SELECT 1 FROM cards WHERE card_number=?", (candidate,)).fetchone()
+                if not exists:
+                    c_num = candidate
+                    break
+            
+            if not c_num:
+                flash("Could not generate a unique card number. Try again.", "danger")
+                conn.close()
+                return redirect(url_for('cards'))
             # Example Result: 4320022 0 12345678
             # ------------------------------
 
             cvc = ''.join([str(random.randint(0,9)) for _ in range(3)])
             pin = ''.join([str(random.randint(0,9)) for _ in range(4)])
+            exp = datetime.now().replace(year=datetime.now().year + 3).strftime("%m/%y")
             
-            conn.execute("INSERT INTO cards (card_number, account_id, cvc, status, expiry, card_type, currency, card_pin) VALUES (?, ?, ?, 'PENDING', '12/30', ?, ?, ?)", 
-                         (c_num, uid, cvc, ctype, currency, pin))
+            conn.execute("INSERT INTO cards (card_number, account_id, cvc, status, expiry, card_type, currency, card_pin) VALUES (?, ?, ?, 'PENDING', ?, ?, ?, ?)", 
+                         (c_num, uid, cvc, exp, ctype, currency, pin))
             conn.commit()
             flash(f"Ordered! PIN: {pin}", "success")
         conn.close()
@@ -909,4 +933,5 @@ def logout():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=5000)
+
 
